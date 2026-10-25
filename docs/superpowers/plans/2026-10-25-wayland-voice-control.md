@@ -12,11 +12,11 @@
 
 Files: `pyproject.toml`, `src/wayland_voice_control/{__init__,domain,commands,storage}.py`, `src/wayland_voice_control/schema.sql`, `schemas/settings.schema.json`, `tests/test_{domain,commands,storage}.py`.
 
-- [ ] Write failing unittest cases for literal dictation versus explicit command mode, exact normalized allowlist matching, rejected unknown commands, control characters, action expiry, stale IDs, edit invalidation, second confirmation for risky commands, single execution, revoke/stop cancellation, and invalid state transitions. Example contract: `parse_command('  NEXT field ')` resolves `next_field`; `parse_command('next field then send')` raises a validation error. Never fuzzy match.
-- [ ] Run `python3 -m unittest discover -s tests -v`; observe intended assertions fail before adding implementation. Establish minimal imports/stubs only if needed to make failures behavioral.
-- [ ] Implement enums/dataclasses, immutable pending actions with IDs/expiry, explicit workflow transitions, and immutable catalogue. Bind executable plans to reviewed actions. Reject malformed data at public boundaries; no Enter, Tab or control characters inside dictated text. Cap transcript length. No execution side effect in this layer.
-- [ ] Write failing tests using temporary SQLite databases for defaults, persistence round-trip, invalid range/type rejection, reset, migration/version handling and absence of content columns. Implement atomic validated settings, restrictive file permissions and packaged schema SQL. Publish matching JSON Schema.
-- [ ] Run complete tests; self-review; commit. Report APIs and observed RED/GREEN evidence.
+- [x] Write failing unittest cases for literal dictation versus explicit command mode, exact normalized allowlist matching, rejected unknown commands, control characters, action expiry, stale IDs, edit invalidation, second confirmation for risky commands, single execution, revoke/stop cancellation, and invalid state transitions. Example contract: `match_command('  NEXT field ')` resolves `next_field`; `match_command('next field then send')` raises a validation error. Never fuzzy match.
+- [x] Run `python3 -m unittest discover -s tests -v`; observe intended assertions fail before adding implementation. Establish minimal imports/stubs only if needed to make failures behavioral.
+- [x] Implement enums/dataclasses, immutable pending actions with IDs/expiry, explicit workflow transitions, and immutable catalogue. Bind executable plans to reviewed actions. Reject malformed data at public boundaries; no Enter, Tab or control characters inside dictated text. Cap transcript length. No execution side effect in this layer.
+- [x] Write failing tests using temporary SQLite databases for defaults, persistence round-trip, invalid range/type rejection, reset, migration/version handling and absence of content columns. Implement atomic validated settings, restrictive file permissions and packaged schema SQL. Publish matching JSON Schema.
+- [x] Run complete tests; self-review; commit. Report APIs and observed RED/GREEN evidence.
 
 ## Task 2 — desktop, audio and application workflow
 
