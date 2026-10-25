@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Wayland Voice Control
+Comment=Offline voice input with explicit review and isolated practice
+Exec=wayland-voice-control
+Icon=io.github.wayland_voice_control
+Terminal=false
+Categories=Utility;Accessibility;
+Keywords=voice;dictation;offline;accessibility;
+StartupNotify=true

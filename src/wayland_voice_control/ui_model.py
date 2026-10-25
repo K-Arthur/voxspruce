@@ -61,3 +61,24 @@ def create_controller(*, practice, store=None):
         schedule=schedule,
         shortcuts=GlobalShortcuts(transport, lambda *_: None),
     )
+
+
+def dependency_status():
+    """Read-only local presence checks; no imports of recognizers or live adapters."""
+    import importlib.util
+    import shutil
+
+    return "\n".join(
+        (
+            "Vosk: installed."
+            if importlib.util.find_spec("vosk")
+            else "Vosk: missing — install the Python speech extra: pip install -e '.[speech]' in this app's environment.",
+            "pw-record: available."
+            if shutil.which("pw-record")
+            else "pw-record: missing — install PipeWire recorder tools (pipewire-bin on Debian/Ubuntu; pipewire on Arch).",
+            "espeak-ng: available (optional read-back)."
+            if shutil.which("espeak-ng")
+            else "espeak-ng: missing (optional) — install espeak-ng only if local read-back is wanted.",
+            "Presence is not model readiness, portal capability or granted permission. Practice needs none of these dependencies.",
+        )
+    )

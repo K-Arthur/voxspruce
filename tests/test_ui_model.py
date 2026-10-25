@@ -51,6 +51,25 @@ class PresentationTests(unittest.TestCase):
                 ui_model.can_capture(replace(ready, state=state)), state is State.IDLE
             )
 
+    def test_missing_optional_live_dependencies_have_install_recovery(self):
+        from unittest.mock import patch
+
+        with (
+            patch("importlib.util.find_spec", return_value=None),
+            patch("shutil.which", return_value=None),
+        ):
+            details = ui_model.dependency_status()
+        for text in (
+            "Vosk",
+            "speech",
+            "pw-record",
+            "PipeWire",
+            "espeak-ng",
+            "optional",
+            "permission",
+        ):
+            self.assertIn(text, details)
+
     def test_review_displays_exact_immutable_custom_details(self):
         from wayland_voice_control.commands import CustomShortcut
 

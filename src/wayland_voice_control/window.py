@@ -4,6 +4,7 @@ import math
 import shutil
 import subprocess
 import threading
+from importlib.resources import files
 from uuid import uuid4
 
 import gi
@@ -15,7 +16,7 @@ from gi.repository import Adw, Gdk, Gtk, Pango
 from .commands import CustomShortcut, command_catalogue
 from .domain import DomainError, Mode, State
 from .storage import SettingsError, SettingsStore
-from .ui_model import action_details, can_capture, create_controller
+from .ui_model import action_details, can_capture, create_controller, dependency_status
 
 
 def label(text="", *, title=False):
@@ -45,6 +46,15 @@ def button(text, callback, *, primary=False):
     widget.connect("clicked", lambda *_: callback())
     if primary:
         widget.add_css_class("suggested-action")
+    return widget
+
+
+def checkbox(label, active=False):
+    widget = Gtk.CheckButton(active=active)
+    widget.set_child(
+        Gtk.Label(label=label, wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR, xalign=0)
+    )
+    widget.update_property([Gtk.AccessibleProperty.LABEL], [label])
     return widget
 
 
@@ -90,6 +100,9 @@ class VoiceWindow(Adw.ApplicationWindow):
         self._reader_action_id = None
         self._reader_generation = 0
         self._chooser = None
+        Gtk.IconTheme.get_for_display(self.get_display()).add_search_path(
+            str(files("wayland_voice_control").joinpath("resources/icons"))
+        )
         self.set_icon_name("io.github.wayland_voice_control")
         self._build()
         self.unsubscribe = self.controller.subscribe(self.render)
@@ -142,14 +155,14 @@ class VoiceWindow(Adw.ApplicationWindow):
             "Speak, review, confirm",
             "Offline speech. Nothing records on launch. Escape cancels; Stop revokes live grants.",
         )
-        self.practice_switch = Gtk.CheckButton(
+        self.practice_switch = checkbox(
             label="Practice mode — simulate input only", active=True
         )
         self.practice_switch.connect("toggled", self._switch_mode)
         modes.append(self.practice_switch)
         self.mode_status = label()
         modes.append(self.mode_status)
-        self.command_mode = Gtk.CheckButton(label="Commands mode (exact phrases only)")
+        self.command_mode = checkbox(label="Commands mode (exact phrases only)")
         self.command_mode.connect("toggled", self._command_changed)
         modes.append(self.command_mode)
         self.readiness = label()
@@ -273,7 +286,7 @@ class VoiceWindow(Adw.ApplicationWindow):
         self.custom_description = entry(
             manager, "Description (optional, up to 240 characters)", limit=240
         )
-        self.custom_enabled = Gtk.CheckButton(label="Enabled", active=True)
+        self.custom_enabled = checkbox(label="Enabled", active=True)
         manager.append(self.custom_enabled)
         self.custom_preview = label()
         manager.append(self.custom_preview)
@@ -304,6 +317,14 @@ class VoiceWindow(Adw.ApplicationWindow):
             "Download and extract a Vosk model yourself, then choose its local directory. "
             "Preparation loads it without recording. Model files are never downloaded by this app.",
         )
+        self.dependencies_status = label(dependency_status())
+        model.append(self.dependencies_status)
+        model.append(
+            button(
+                "Refresh local dependency checks",
+                lambda: self.dependencies_status.set_text(dependency_status()),
+            )
+        )
         self.model_path = entry(model, "Local Vosk model directory")
         self.choose_folder = button("Choose model folder…", self.choose_model)
         model.append(self.choose_folder)
@@ -321,7 +342,7 @@ class VoiceWindow(Adw.ApplicationWindow):
             "Default off. Enabling consent permits only explicit held recording in Live mode. "
             "Release ends recording; the configured duration cap also stops it.",
         )
-        self.mic_consent = Gtk.CheckButton(
+        self.mic_consent = checkbox(
             label="I allow microphone capture while holding to talk"
         )
         consent.append(self.mic_consent)

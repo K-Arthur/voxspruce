@@ -1,0 +1,43 @@
+name: Linux checks
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-venv python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb dbus-x11 libxtst6
+          python3 -m venv --system-site-packages .venv
+          .venv/bin/python -m pip install -e . build ruff 'setuptools>=77' wheel
+      - name: Pure tests and static checks
+        run: |
+          .venv/bin/python -m unittest discover -s tests -v
+          .venv/bin/ruff check src tests scripts
+          .venv/bin/python -m compileall -q src tests scripts
+      - name: Native widgets with isolated adapters
+        env:
+          WVC_GTK_TESTS: '1'
+          GDK_BACKEND: x11
+          GSK_RENDERER: cairo
+          GTK_A11Y: test
+          GIO_USE_VFS: local
+        run: dbus-run-session -- xvfb-run -a .venv/bin/python -m unittest tests.test_ui_gtk -v
+      - name: Actual Gio wire against private fake portal
+        run: .venv/bin/python scripts/check-portal-protocol.py
+      - name: Build and inspect installed entry point
+        run: |
+          .venv/bin/python -m build --no-isolation
+          python3 -m venv --system-site-packages /tmp/wvc-install
+          /tmp/wvc-install/bin/python -m pip install --no-deps dist/*.whl
+          cd /tmp
+          /tmp/wvc-install/bin/wayland-voice-control --help
+          /tmp/wvc-install/bin/wayland-voice-control commands
+          /tmp/wvc-install/bin/wayland-voice-control doctor --json
+          /tmp/wvc-install/bin/python -c "from importlib.resources import files; assert files('wayland_voice_control').joinpath('custom-shortcuts.sql').is_file()"
+          WVC_GTK_TESTS=1 GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=test GIO_USE_VFS=local PYTHONPATH="$GITHUB_WORKSPACE" dbus-run-session -- xvfb-run -a /tmp/wvc-install/bin/python -m unittest tests.test_ui_gtk.NativeWindowTests.test_launch_practice_never_constructs_live_and_no_capture tests.test_ui_gtk.NativeWindowTests.test_all_views_are_attached_to_the_visible_native_window tests.test_ui_gtk.NativeWindowTests.test_native_icon_is_available_for_source_and_wheel_runs -v
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/*

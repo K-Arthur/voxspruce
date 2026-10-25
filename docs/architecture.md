@@ -40,7 +40,7 @@ See [adapter-api.md](adapter-api.md) for the exact integration contract and
 
 ## Startup and setup
 
-Launch starts with no microphone capture and no portal dialog. Load the local
+Launch starts in isolated Practice with no live adapters, microphone capture or portal dialog. Selecting Live constructs the live adapters without requesting permission. Load the local
 preferences; display missing dependencies and model configuration. The user
 chooses an extracted local Vosk model, explicitly enables application microphone
 consent and explicitly requests desktop keyboard permission. Global shortcut
@@ -48,7 +48,7 @@ binding is a separate optional consent step. Neither a saved preference nor
 successful portal introspection is an operating-system keyboard grant.
 
 Model preparation runs locally without opening the microphone. It lets the user
-wait for cold model loading before holding the talk control. The app displays a
+wait for cold model loading before holding the talk control. Ready status is mandatory for both local and global capture paths. The app displays a
 draft during speech, then offers finalized text for review after release. Drafts
 can change and have no authority to execute anything.
 

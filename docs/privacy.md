@@ -4,7 +4,7 @@ The application runs recognition locally. Runtime code has no account, telemetry
 
 ## Audio and text
 
-The microphone is off at launch. App-level microphone consent must be enabled, then a push-to-talk control held. PipeWire audio is streamed through a pipe to a local Vosk recognizer. The application does not write audio files. Transcript and pending-action text live in memory, are displayed for review, and are discarded on cancel, completion or quit. Python, Vosk and the operating system may retain freed memory or swap pages; this is not a secure-memory or forensic-erasure guarantee.
+Launch defaults to isolated typed Practice; no live capture or portal adapters are constructed. Selecting Live still leaves the microphone off. App-level microphone consent must be enabled, then a push-to-talk control held. PipeWire audio is streamed through a pipe to a local Vosk recognizer. The application does not write audio files. Transcript and pending-action text live in memory, are displayed for review, and are discarded on cancel, completion or quit. The clearly marked last simulated Practice output remains visible in memory until replacement or leaving Practice; it is never saved. Python, Vosk and the operating system may retain freed memory or swap pages; this is not a secure-memory or forensic-erasure guarantee.
 
 Persistent SQLite storage contains only validated preferences such as model path, microphone consent, time limits and theme, plus intentionally configured custom shortcut IDs, phrases, single chords, descriptions and enable flags. No recognized transcript, audio, clipboard content, pending action, permission token or activity history belongs in the database. Custom phrases are entered configuration, never automatically saved speech. The application creates private configuration storage and can atomically reset preferences and remove every custom shortcut. The model files themselves remain on disk until the user removes them.
 
@@ -13,6 +13,8 @@ Persistent SQLite storage contains only validated preferences such as model path
 The RemoteDesktop portal requests keyboard control. The desktop presents its own permission dialog; the app checks the returned grant before allowing input. Permission is not restored from a saved token. No screen capture is requested. Desktop denial, revocation or session closure blocks future input. Emergency stop closes the session and cancels work. The app never uses raw input-device access, root, uinput or input-helper daemons.
 
 The app uses PipeWire capture after its own explicit mic-consent step. This step is an application setting, not a claim that Linux exposes a universal microphone-consent portal. The operating system's own audio/device restrictions continue to apply.
+
+Optional read-back pipes only the currently reviewed action to local espeak-ng stdin, never through command arguments, a shell or a file. Cancelling, editing, confirming, replacing an action, changing settings/mode or quitting terminates that read-back process.
 
 Global shortcuts use the desktop portal and its consent UI. The app does not monitor arbitrary keys. Users may decline this permission and use the local controls.
 

@@ -401,6 +401,36 @@ class NativeWindowTests(unittest.TestCase):
             pump()
             x11.XCloseDisplay(display)
 
+    def test_native_icon_is_available_for_source_and_wheel_runs(self):
+        from gi.repository import Gtk
+
+        theme = Gtk.IconTheme.get_for_display(self.window.get_display())
+        self.assertTrue(theme.has_icon("io.github.wayland_voice_control"))
+
+    def test_actual_granted_shortcut_descriptions_are_rendered(self):
+        from dataclasses import replace
+
+        snapshot = replace(
+            self.window.controller.snapshot,
+            shortcut_bindings={"hold_to_talk": "Control+F8 (desktop assigned)"},
+        )
+        self.window.render(snapshot)
+        self.assertIn(
+            "Control+F8 (desktop assigned)", self.window.bindings_status.get_text()
+        )
+
+    def test_choice_labels_wrap_in_compact_views(self):
+        from gi.repository import Gtk
+
+        for choice in (
+            self.window.practice_switch,
+            self.window.command_mode,
+            self.window.mic_consent,
+        ):
+            self.assertLessEqual(
+                choice.measure(Gtk.Orientation.HORIZONTAL, -1).minimum, 300
+            )
+
     def test_real_practice_factory_never_touches_live_constructor(self):
         from wayland_voice_control.ui_model import create_controller
 

@@ -1,11 +1,15 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "wayland-voice-control"
 version = "0.1.0"
 description = "Offline, explicitly confirmed voice assistance for GNOME Wayland"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+classifiers = ["Operating System :: POSIX :: Linux", "Programming Language :: Python :: 3"]
 requires-python = ">=3.11"
 dependencies = []
 
@@ -19,4 +23,9 @@ speech = ["vosk>=0.3.45,<0.4"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-wayland_voice_control = ["schema.sql", "custom-shortcuts.sql"]
+wayland_voice_control = ["schema.sql", "custom-shortcuts.sql", "resources/icons/*.svg"]
+
+[tool.setuptools.data-files]
+"share/applications" = ["data/io.github.wayland_voice_control.desktop"]
+"share/icons/hicolor/scalable/apps" = ["data/io.github.wayland_voice_control.svg"]
+"share/wayland-voice-control/schemas" = ["schemas/settings.schema.json", "schemas/custom-voice-shortcuts.schema.json"]

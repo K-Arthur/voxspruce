@@ -124,3 +124,73 @@ were observed RED before the corrections; the complete suite passes **171 tests*
 with Ruff and the isolated Gio protocol check passing again.
 
 Task 2c passed independent specification and code-quality reviews. Final backend verification: 171 tests, Ruff, and isolated real-Gio protocol tests pass. User-customized voice phrases and validated single-chord actions use a transactional SQLite v1→v2 migration that preserves every existing preference. The desktop GUI is the next milestone.
+
+## Task 3: native app and distribution
+
+Recorded 25 October 2026. The native GTK4/libadwaita app now runs with Voice,
+Commands and Setup views. It starts in isolated typed Practice; selecting Live
+still requires explicit saved mic consent, successful model preparation and an
+actual keyboard grant before capture. UI and controller regressions were observed
+RED before implementation/corrections and then GREEN. These include readiness,
+immutable action details, staged editing, custom CRUD/collisions/disabled entries,
+second confirmation, focus countdown, Stop/Escape cancellation, mode revocation,
+actual returned binding descriptions, optional dependency recovery and read-back
+subprocess lifetime. Source/wheel icon lookup is asserted.
+
+Fresh integrated command:
+
+```sh
+WVC_GTK_TESTS=1 GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=test GIO_USE_VFS=local \
+  PYTHONPATH=src dbus-run-session -- xvfb-run -a .venv/bin/python \
+  -m unittest discover -s tests -v
+```
+
+**200 tests passed, no skips**, including **20 native GTK cases** on this host.
+The real native Vosk regression cases used the optional engine/model fixture
+already installed for prior milestones. The separate pure discovery run before
+the last presentation test passed with native cases explicitly skipped; CI runs
+them in a separate Xvfb step. No host microphone or live input adapter is used by
+the GTK tests. The real-space duration-cap regression uses libXtst key events on
+only the private Xvfb display: physical release clears the latch, auto-repeat does
+not restart capture, and a newly focused hold works afterward. Tests also assert
+that every view is attached to the native window, programmatic labels are set,
+and long phrases/choice labels do not force wide controls.
+
+The following fresh checks passed:
+
+- `.venv/bin/ruff check src tests scripts`
+- `.venv/bin/python -m compileall -q src tests scripts`
+- `PYTHONPATH=src .venv/bin/python scripts/check-portal-protocol.py`
+- `.venv/bin/python -m build --no-isolation` (wheel and sdist)
+- `bash -n scripts/install-local.sh scripts/run-local.sh`
+
+The local installer was executed with an isolated `XDG_DATA_HOME` under ignored
+`artifacts/`, verifying the quoted absolute launcher command and exact matching
+hicolor SVG bytes without changing the user's application menu. The wheel was
+installed into a fresh system-site-packages venv; from `/tmp`, installed CLI help,
+commands, read-only diagnostics, SQL/schema/desktop/icon resources and the actual
+native application were checked. This venv had no Vosk or model: native startup
+and typed Practice review succeeded and the bundled icon resolved. Its app was
+closed normally to exercise shutdown.
+
+Actual native windows were rendered and inspected at 780×820 and 550×820 in
+Practice, including Voice, Commands and Setup, system dark appearance and a light
+appearance with a larger `Sans 16` font. Text and long command buttons wrap, views
+scroll, and Stop remains outside the scrolling content. Screenshots are ignored
+local artifacts, not recordings or real desktop compatibility evidence. Toolkit
+startup on the private D-Bus activated portal services without requesting live
+keyboard/microphone grants. Host PyGObject emitted upstream Python 3.14
+DeprecationWarnings and Xvfb emitted software-rendering/portal-backend notices;
+these did not fail the checks.
+
+The Linux CI workflow is configured for pure tests, real GTK/XTest cases,
+protocol integration, static checks, distribution build and installed entry-point
+inspection. No remote GitHub Actions run is claimed here. UI specification review
+approved the tested behavior after corrections; the final integrated code-quality
+review is tracked separately in the implementation plan.
+
+Still unperformed: real GNOME permission dialogs, grant denial/revocation by the
+compositor, actual text/Unicode delivery into another application, global shortcuts
+on the user's real desktop, physical microphone capture/lifetime/latency, Orca
+usability and sessions with intended voice-input users. These remain the manual
+release gates and are not implied by any of the software checks above.

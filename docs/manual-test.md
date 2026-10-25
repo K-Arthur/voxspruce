@@ -8,10 +8,10 @@ Record date, distribution/version, GNOME Shell version, Wayland session, xdg-des
 
 ## Week-one input decision
 
-1. Start the application with microphone consent disabled. It must neither record nor present a portal permission dialog.
-2. Request keyboard access. Deny it. Confirm that all input remains blocked and retry is available.
+1. Start the application in default Practice with microphone consent disabled. It must neither construct live adapters nor record or present a permission dialog. Exercise a typed practice example and inspect simulated output. Switch to Live; select/save and explicitly prepare an extracted model. Enable mic consent only when ready for held speech.
+2. In Live Setup, request keyboard access. Deny it. Confirm that all input remains blocked and retry is available.
 3. Request again. Grant keyboard access in the desktop dialog. Check that no screen-sharing source was requested and the app accurately reports granted permission.
-4. In a disposable editor, review and confirm `Wayland voice test 123.`. Select the editor during the visible countdown. Record exact output, duplication, missing characters, latency and whether any unexpected key is pressed.
+4. In Live Dictation mode, hold to speak `Wayland voice test 123.`, release, review the final transcript and confirm it. Select the editor during the visible countdown. Record exact output, duplication, missing characters, latency and whether any unexpected key is pressed.
 5. Repeat with punctuation and the languages/layouts being claimed. Record characters that fail. Do not generalize from ASCII success to Unicode support.
 6. Test next/previous field, copy/paste, select all and undo in disposable text. Test press Enter, close window and delete selection only in disposable contexts, after both confirmations. A single confirmation must never execute those actions.
 7. Revoke permission using the desktop controls while an action is pending and again during a countdown. There must be no later injection. Reconnect must not replay the old action.
@@ -25,8 +25,8 @@ Record date, distribution/version, GNOME Shell version, Wayland session, xdg-des
 
 - With mic consent off, mouse, keyboard and global shortcuts must not open capture.
 - Press/hold and release; inspect actual PipeWire capture lifetime. Test very short holds, rapid repeats, lost focus, lost pointer grab, Escape, permission revoke and application quit.
-- During model loading, release the held control: capture must not start afterward. During processing, stop: a late transcript must not revive the session.
-- Hold past the configured duration cap; capture must stop. If the recorder exits early or the microphone disappears, show a recoverable error.
+- While model preparation is idle/loading/error, neither local nor global hold may start capture. Prepare explicitly, then test release during microphone startup: capture must not start afterward. During processing, stop: a late transcript must not revive the session.
+- Hold past the configured duration cap; capture must stop, the recording indicator must clear, auto-repeat must not restart it, and a physical release followed by a new hold must work. If the recorder exits early or the microphone disappears, show a recoverable error.
 - Disconnect the network after local dependency/model setup. Dictation and commands must work without outbound connections. No temporary audio files or transcript logs should appear.
 - Compare recognized text to intended speech using at least two accents and two microphones. Record failures, not only successful takes. Do not publish an accuracy percentage without a defined sample and scoring method.
 

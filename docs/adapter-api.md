@@ -170,3 +170,23 @@ its bound phrase, exact chord, description and high-risk marker. All custom
 commands have `Risk.HIGH` because effects depend on the destination application;
 explain this and require the separate second confirmation. Never resolve a
 pending action's current settings to decide what chord to show or execute.
+
+
+## Native application
+
+`python -m wayland_voice_control` and the installed launcher open an
+`Adw.ApplicationWindow` with Voice, Commands and Setup views, initially backed by
+an isolated Practice controller. `gui --settings PATH` selects an explicit private
+settings database. Local presence checks for Vosk, pw-record and optional espeak-ng
+are read-only and are distinct from model preparation, portal capability and
+permission. Only selecting Live constructs the OS adapters, and only explicit
+Setup buttons request grants, bind shortcuts or prepare a model.
+
+The final review renders `PendingAction` directly. The editor is read-only until
+`begin_edit` has synchronously revoked approval. Read-back is tied to the displayed
+action ID and allowed review states; any invalidation stops the subprocess. Local
+held input separately latches physical press/release and renders microphone
+activity from snapshots. A duration cap can clear the Recording indicator without
+letting keyboard auto-repeat start a new capture. The held control stays sensitive
+until real key-up/pointer release arrives. Emergency Stop is outside the scrolling
+views; Escape is handled in the window's event-capture phase.
