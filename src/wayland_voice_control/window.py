@@ -133,6 +133,7 @@ class VoiceWindow(Adw.ApplicationWindow):
             scroll.set_child(clamp)
             self.stack.add_titled(scroll, name, title)
             build(content)
+        root.append(self.stack)
         self.set_content(root)
 
     def _voice(self, parent):
@@ -472,6 +473,7 @@ class VoiceWindow(Adw.ApplicationWindow):
         if self._held:
             self._held = False
             self.controller.finish_recording()
+        self.render(self.controller.snapshot)
 
     def _cancel_hold(self):
         if self._held:
@@ -842,7 +844,7 @@ class VoiceWindow(Adw.ApplicationWindow):
             )
             if snapshot.state is not State.RECORDING:
                 self._held = False
-            self.hold_button.set_sensitive(can_capture(snapshot) or self._held)
+            self.hold_button.set_sensitive(can_capture(snapshot) or self._hold_pressed)
             self.hold_button.set_label(
                 {
                     "loading": "Preparing capture · release to cancel",

@@ -323,6 +323,84 @@ class NativeWindowTests(unittest.TestCase):
             practice.measure(Gtk.Orientation.HORIZONTAL, -1).minimum, 300
         )
 
+    def test_all_views_are_attached_to_the_visible_native_window(self):
+        self.assertIs(self.window.stack.get_root(), self.window)
+        for name in ("voice", "commands", "setup"):
+            child = self.window.stack.get_child_by_name(name)
+            self.assertIs(child.get_root(), self.window)
+        self.assertIs(self.window.practice_entry.get_root(), self.window)
+        self.assertIs(self.window.model_path.get_root(), self.window)
+
+    def test_real_space_release_after_duration_cap_allows_a_new_hold(self):
+        import ctypes
+        import ctypes.util
+
+        from gi.repository import Gdk, GLib
+
+        x11 = ctypes.CDLL(ctypes.util.find_library("X11"))
+        xtst = ctypes.CDLL(ctypes.util.find_library("Xtst"))
+        x11.XOpenDisplay.restype = ctypes.c_void_p
+        x11.XKeysymToKeycode.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+        x11.XKeysymToKeycode.restype = ctypes.c_uint
+        x11.XFlush.argtypes = [ctypes.c_void_p]
+        x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+        x11.XSetInputFocus.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_ulong,
+            ctypes.c_int,
+            ctypes.c_ulong,
+        ]
+        xtst.XTestFakeKeyEvent.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_uint,
+            ctypes.c_int,
+            ctypes.c_ulong,
+        ]
+        display = x11.XOpenDisplay(None)
+        self.assertTrue(display)
+
+        def pump():
+            loop = GLib.MainLoop()
+            GLib.timeout_add(80, lambda: loop.quit() or False)
+            loop.run()
+
+        self.window.practice_switch.set_active(False)
+        controller = self.window.controller
+        controller._model_readiness = "ready"
+        controller.settings = __import__("dataclasses").replace(
+            controller.settings, microphone_consent=True
+        )
+        controller._workflow.set_microphone_consent(True)
+        controller.connect()
+        controller.remote.grant()
+        self.window.present()
+        pump()
+        x11.XSetInputFocus(display, self.window.get_surface().get_xid(), 1, 0)
+        self.window.hold_button.grab_focus()
+        code = x11.XKeysymToKeycode(display, Gdk.KEY_space)
+        try:
+            xtst.XTestFakeKeyEvent(display, code, True, 0)
+            x11.XFlush(display)
+            pump()
+            self.assertTrue(self.window._held)
+            controller.audio.callbacks["on_activity"]("processing")
+            controller.audio.callbacks["on_result"]("duration cap reached")
+            xtst.XTestFakeKeyEvent(display, code, False, 0)
+            x11.XFlush(display)
+            pump()
+            self.assertFalse(self.window._hold_pressed)
+            controller.cancel()
+            self.window.hold_button.grab_focus()
+            xtst.XTestFakeKeyEvent(display, code, True, 0)
+            x11.XFlush(display)
+            pump()
+            self.assertTrue(self.window._held)
+        finally:
+            xtst.XTestFakeKeyEvent(display, code, False, 0)
+            x11.XFlush(display)
+            pump()
+            x11.XCloseDisplay(display)
+
     def test_real_practice_factory_never_touches_live_constructor(self):
         from wayland_voice_control.ui_model import create_controller
 
