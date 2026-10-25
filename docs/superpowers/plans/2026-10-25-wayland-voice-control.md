@@ -22,12 +22,22 @@ Files: `pyproject.toml`, `src/wayland_voice_control/{__init__,domain,commands,st
 
 Files: `src/wayland_voice_control/{portal,audio,controller,diagnostics,__main__}.py`, additional focused adapter modules if needed; `tests/test_{portal,audio,controller,diagnostics,cli}.py`.
 
-- [ ] Write failing tests for portal request subscription-before-call, request tokens/paths, denial/timeout cleanup, actual granted keyboard bit, session Closed revocation, input rejection without grant, press/release cleanup, and shortcut press/release events scoped to the correct session. Use a deterministic fake transport at the D-Bus boundary, not a fake workflow.
-- [ ] Implement Gio async request transport and RemoteDesktop keyboard-only session. Use official NotifyKeyboardKeysym without EIS. Implement GlobalShortcuts for hold-to-talk, confirm and cancel; expose actual granted triggers. No raw device access or fallback input tools.
-- [ ] Write failing capture tests for explicit consent, local valid model path, duplicate start, max duration, cancel during startup/capture/recognition, subprocess failure/EOF, in-memory streaming, stop and process cleanup. Implement `pw-record --rate=16000 --channels=1 --format=s16 --raw -` without shell, feed chunks to Vosk, cache only the loaded model, drop stale worker completions. Keep errors free of transcript content.
-- [ ] Write failing coordinator tests for complete capture→review→confirm→dispatch, local focus countdown versus global confirmation, risky second confirmation, edit invalidation, generation checks, emergency stop/revoke while pending/scheduled, and no replay after partial input failure. Implement clean observable state and injectable scheduler/adapters for UI.
-- [ ] Add read-only `doctor` CLI with JSON output and honest capability states, `commands` catalogue CLI, optional explicit `portal-test` helper that prints target/focus instructions and never injects before consent. Default `python -m wayland_voice_control` launches GUI via lazy import. Runtime has no network access logic; local models are imported through filesystem paths.
-- [ ] Run all tests and CLI checks, self-review and commit. Report real hardware validation limits distinctly.
+- [x] Write failing tests for portal request subscription-before-call, request tokens/paths, denial/timeout cleanup, actual granted keyboard bit, session Closed revocation, input rejection without grant, press/release cleanup, and shortcut press/release events scoped to the correct session. Use a deterministic fake transport at the D-Bus boundary, not a fake workflow.
+- [x] Implement Gio async request transport and RemoteDesktop keyboard-only session. Use official NotifyKeyboardKeysym without EIS. Implement GlobalShortcuts for hold-to-talk, confirm and cancel; expose actual granted triggers. No raw device access or fallback input tools.
+- [x] Write failing capture tests for explicit consent, local valid model path, duplicate start, max duration, cancel during startup/capture/recognition, subprocess failure/EOF, in-memory streaming, stop and process cleanup. Implement `pw-record --rate=16000 --channels=1 --format=s16 --raw -` without shell, feed chunks to Vosk, cache only the loaded model, drop stale worker completions. Keep errors free of transcript content.
+- [x] Write failing coordinator tests for complete capture→review→confirm→dispatch, local focus countdown versus global confirmation, risky second confirmation, edit invalidation, generation checks, emergency stop/revoke while pending/scheduled, and no replay after partial input failure. Implement clean observable state and injectable scheduler/adapters for UI.
+- [x] Add read-only `doctor` CLI with JSON output and honest capability states, `commands` catalogue CLI, optional explicit `portal-test` helper that prints target/focus instructions and never injects before consent. Default `python -m wayland_voice_control` launches GUI via lazy import. Runtime has no network access logic; local models are imported through filesystem paths.
+- [x] Run all tests and CLI checks, self-review and commit. Report real hardware validation limits distinctly.
+
+## Task 2b — realtime speech feedback and measured performance
+
+Added for the user's explicit realtime requirement on 25 October 2026.
+
+- [ ] Test first: streaming draft updates combine completed segments with current partial results, are bounded and coalesced, never become approved actions, and cannot survive cancel/replacement/finalization. Preserve fixed privacy-safe errors and held capture semantics.
+- [ ] Add an explicit model preparation operation that loads/caches locally without starting a recorder. Expose loading/ready/error and safe cancellation so first spoken syllables are not lost while a cold model loads. Continue to prohibit capture after release during loading.
+- [ ] Expose transient draft text and model readiness through coordinator snapshots for the native UI; clear drafts on release/final/error/cancel/stop and prevent stale prepare/partial callbacks from affecting newer work.
+- [ ] Provide a reproducible local-WAV benchmark using the application's streaming decoding path. Report cold load, audio duration, decode time, realtime factor, chunk latency percentiles, and finalization latency; print no transcript by default and never capture audio or download assets. Run on the public upstream fixture and document measured hardware/model-specific limits.
+- [ ] Run all tests, Ruff and private Gio protocol verification; commit progressively; specification review then quality review before native UI integration.
 
 ## Task 3 — accessible native app, distribution and documentation
 

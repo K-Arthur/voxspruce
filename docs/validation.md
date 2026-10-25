@@ -31,3 +31,5 @@ Task 2 commits `a0b60eb` and `5530ce7` bring the suite to 98 passing tests. Spec
 ## Release gates still requiring a person and real desktop session
 
 The GNOME input kill test, real portal consent/revocation, focused-app input, global shortcut behavior, physical microphone lifecycle, speech accuracy/latency across accents and devices, and testing with intended voice-input users must be recorded using [manual-test.md](manual-test.md). They cannot be inferred from unit tests, the development host's portal availability or headless GTK rendering.
+
+Task 2 quality review approved commits `0ce794e` and `f427c98`: stale transcript edits preserve unrelated active operations, and pending permission requests have separate cancellation identities. The complete suite now has 108 passing tests; Ruff and the private Gio protocol check pass. Realtime draft feedback and native UI are the next implementation stages.
