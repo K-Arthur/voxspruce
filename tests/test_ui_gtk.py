@@ -331,6 +331,62 @@ class NativeWindowTests(unittest.TestCase):
         self.assertIs(self.window.practice_entry.get_root(), self.window)
         self.assertIs(self.window.model_path.get_root(), self.window)
 
+    def test_unsaved_microphone_revocation_blocks_local_and_global_capture(self):
+        self.store.update({"microphone_consent": True, "model_path": "/offline/model"})
+        self.window.practice_switch.set_active(False)
+        controller = self.window.controller
+        controller._model_readiness = "ready"
+        controller.connect()
+        controller.remote.grant()
+        self.assertTrue(self.window.hold_button.get_sensitive())
+        self.window.mic_consent.set_active(False)
+        self.assertFalse(controller.snapshot.permission_granted)
+        self.assertFalse(controller.snapshot.microphone_consent)
+        self.assertTrue(self.store.load().microphone_consent)  # not saved yet
+        self.assertIn("Unsaved", self.window.settings_status.get_text())
+        self.assertFalse(self.window.connect_button.get_sensitive())
+        self.assertFalse(self.window.bind_shortcuts.get_sensitive())
+        self.assertFalse(self.window.model_prepare.get_sensitive())
+        self.window.hold_begin()
+        controller.shortcut_event("hold_to_talk", True)
+        self.assertEqual(controller.audio.callbacks, {})
+        self.assertEqual(controller.snapshot.state, State.IDLE)
+        self.window.save_settings.emit("clicked")
+        self.assertFalse(self.store.load().microphone_consent)
+        self.assertFalse(controller.snapshot.permission_granted)
+        self.assertEqual(controller.snapshot.model_readiness, "idle")
+        self.assertTrue(self.window.connect_button.get_sensitive())
+        self.assertFalse(self.window.hold_button.get_sensitive())
+
+    def test_every_setup_edit_pauses_live_and_survives_mode_switch_until_save(self):
+        self.store.update({"microphone_consent": True, "model_path": "/offline/model"})
+        self.window.practice_switch.set_active(False)
+        edits = (
+            lambda: self.window.model_path.set_text("/other/model"),
+            lambda: self.window.focus_delay.set_value(5),
+            lambda: self.window.capture_limit.set_value(20),
+            lambda: self.window.review_lifetime.set_value(60),
+            lambda: self.window.theme.set_selected(1),
+        )
+        for edit in edits:
+            controller = self.window.controller
+            controller._model_readiness = "ready"
+            controller.connect()
+            controller.remote.grant()
+            edit()
+            self.assertFalse(controller.snapshot.permission_granted)
+            self.window.hold_begin()
+            controller.shortcut_event("hold_to_talk", True)
+            self.assertEqual(controller.audio.callbacks, {})
+            self.assertFalse(self.window.connect_button.get_sensitive())
+            self.window.practice_switch.set_active(True)
+            self.window.practice_switch.set_active(False)
+            self.assertFalse(self.window.connect_button.get_sensitive())
+            self.assertIn("Unsaved", self.window.settings_status.get_text())
+            self.window.save_settings.emit("clicked")
+            self.assertTrue(self.window.connect_button.get_sensitive())
+        self.assertEqual(self.store.load().model_path, "/other/model")
+
     def test_real_space_release_after_duration_cap_allows_a_new_hold(self):
         import ctypes
         import ctypes.util
@@ -385,6 +441,8 @@ class NativeWindowTests(unittest.TestCase):
             self.assertTrue(self.window._held)
             controller.audio.callbacks["on_activity"]("processing")
             controller.audio.callbacks["on_result"]("duration cap reached")
+            self.window.command_mode.grab_focus()
+            pump()
             xtst.XTestFakeKeyEvent(display, code, False, 0)
             x11.XFlush(display)
             pump()

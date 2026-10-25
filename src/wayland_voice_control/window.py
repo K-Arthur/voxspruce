@@ -4,6 +4,7 @@ import math
 import shutil
 import subprocess
 import threading
+from dataclasses import replace
 from importlib.resources import files
 from uuid import uuid4
 
@@ -90,6 +91,8 @@ class VoiceWindow(Adw.ApplicationWindow):
         self.controller = controller_factory(practice=True, store=self.store)
         self.unsubscribe = None
         self._rendering = False
+        self._loading_settings = False
+        self._settings_dirty = False
         self._held = False
         self._hold_pressed = False
         self._closed = False
@@ -111,6 +114,7 @@ class VoiceWindow(Adw.ApplicationWindow):
         keys = Gtk.EventControllerKey()
         keys.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
         keys.connect("key-pressed", self._window_key)
+        keys.connect("key-released", self._window_key_release)
         self.add_controller(keys)
 
     def _build(self):
@@ -194,7 +198,6 @@ class VoiceWindow(Adw.ApplicationWindow):
         self.hold_button.add_controller(gesture)
         keys = Gtk.EventControllerKey()
         keys.connect("key-pressed", self._hold_key)
-        keys.connect("key-released", self._hold_key_release)
         self.hold_button.add_controller(keys)
         modes.append(self.hold_button)
         self.draft = label()
@@ -330,7 +333,7 @@ class VoiceWindow(Adw.ApplicationWindow):
         model.append(self.choose_folder)
         self.model_prepare = button(
             "Prepare saved model",
-            lambda: self._safe(self.controller.prepare_model),
+            lambda: self._live_setup_action(self.controller.prepare_model),
             primary=True,
         )
         model.append(self.model_prepare)
@@ -389,7 +392,7 @@ class VoiceWindow(Adw.ApplicationWindow):
         )
         self.connect_button = button(
             "Request desktop keyboard access…",
-            lambda: self._safe(self.controller.connect),
+            lambda: self._live_setup_action(self.controller.connect),
         )
         access.append(self.connect_button)
         self.revoke_button = button(
@@ -407,7 +410,7 @@ class VoiceWindow(Adw.ApplicationWindow):
         )
         self.bind_shortcuts = button(
             "Request global shortcut bindings…",
-            lambda: self._safe(self.controller.connect_shortcuts),
+            lambda: self._live_setup_action(self.controller.connect_shortcuts),
         )
         shortcuts.append(self.bind_shortcuts)
         self.bindings_status = label()
@@ -423,6 +426,42 @@ class VoiceWindow(Adw.ApplicationWindow):
             "GNOME Wayland is the intended target; compositor compatibility and actual consent need real-session testing.",
         )
         self.load_settings()
+        for widget, signal in (
+            (self.model_path, "changed"),
+            (self.mic_consent, "toggled"),
+            (self.focus_delay, "value-changed"),
+            (self.capture_limit, "value-changed"),
+            (self.review_lifetime, "value-changed"),
+            (self.theme, "notify::selected"),
+        ):
+            widget.connect(signal, self._setup_changed)
+
+    def _setup_changed(self, *_):
+        if self._loading_settings or self._closed:
+            return
+        self._settings_dirty = True
+        self._pause_unsaved_setup()
+
+    def _pause_unsaved_setup(self):
+        self._held = False
+        self.settings_status.set_text(
+            "Unsaved Setup changes · live input paused. Save, prepare the model and reconnect explicitly."
+        )
+        # Revoke runtime microphone consent as well as all OS sessions immediately.
+        # The saved preferences and the complete editable form stay unchanged until Save.
+        self.controller.apply_settings(
+            replace(self.controller.settings, microphone_consent=False)
+        )
+
+    def _live_setup_action(self, callback):
+        if self._settings_dirty:
+            self.status.set_text(
+                "Unsaved Setup changes · live input paused. Save before preparing or requesting access."
+            )
+            return None
+        if not self.controller.practice:
+            return self._safe(callback)
+        return None
 
     def _safe(self, callback):
         try:
@@ -466,7 +505,10 @@ class VoiceWindow(Adw.ApplicationWindow):
             Mode.COMMANDS if self.command_mode.get_active() else Mode.DICTATION
         )
         self.unsubscribe = new.subscribe(self.render)
-        self.load_settings()
+        if self._settings_dirty:
+            self._pause_unsaved_setup()
+        else:
+            self.load_settings()
 
     def _command_changed(self, *_):
         self._held = False
@@ -482,7 +524,11 @@ class VoiceWindow(Adw.ApplicationWindow):
         )
 
     def hold_begin(self):
-        if not self._hold_pressed and can_capture(self.controller.snapshot):
+        if (
+            not self._settings_dirty
+            and not self._hold_pressed
+            and can_capture(self.controller.snapshot)
+        ):
             self._hold_pressed = True
             self._held = True
             if not self.controller.start_recording():
@@ -508,8 +554,12 @@ class VoiceWindow(Adw.ApplicationWindow):
             return True
         return False
 
-    def _hold_key_release(self, _keys, keyval, _code, _modifiers):
-        if keyval in (Gdk.KEY_space, Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+    def _window_key_release(self, _keys, keyval, _code, _modifiers):
+        if self._hold_pressed and keyval in (
+            Gdk.KEY_space,
+            Gdk.KEY_Return,
+            Gdk.KEY_KP_Enter,
+        ):
             self.hold_end()
 
     def _window_key(self, _keys, keyval, _code, _modifiers):
@@ -563,13 +613,20 @@ class VoiceWindow(Adw.ApplicationWindow):
 
     def load_settings(self):
         settings = self.controller.settings
-        self.model_path.set_text(settings.model_path)
-        self.mic_consent.set_active(settings.microphone_consent)
-        self.focus_delay.set_value(settings.focus_delay_seconds)
-        self.capture_limit.set_value(settings.capture_limit_seconds)
-        self.review_lifetime.set_value(settings.confirmation_ttl_seconds)
-        self.theme.set_selected(["system", "light", "dark"].index(settings.theme))
-        self._apply_theme(settings.theme)
+        self._loading_settings = True
+        try:
+            self.model_path.set_text(settings.model_path)
+            self.mic_consent.set_active(settings.microphone_consent)
+            self.focus_delay.set_value(settings.focus_delay_seconds)
+            self.capture_limit.set_value(settings.capture_limit_seconds)
+            self.review_lifetime.set_value(settings.confirmation_ttl_seconds)
+            self.theme.set_selected(["system", "light", "dark"].index(settings.theme))
+            self._apply_theme(settings.theme)
+            self._settings_dirty = False
+        finally:
+            self._loading_settings = False
+        if self.unsubscribe:
+            self.render(self.controller.snapshot)
 
     def _apply_theme(self, theme):
         Adw.StyleManager.get_default().set_color_scheme(
@@ -839,7 +896,9 @@ class VoiceWindow(Adw.ApplicationWindow):
                 else "Live · explicit held recording and reviewed desktop input"
             )
             self.status.set_text(
-                f"{snapshot.state.value.replace('_', ' ').capitalize()} · {snapshot.status}"
+                "Unsaved Setup changes · live input paused. Save before preparing or reconnecting."
+                if self._settings_dirty
+                else f"{snapshot.state.value.replace('_', ' ').capitalize()} · {snapshot.status}"
             )
             self.readiness.set_text(
                 f"Model: {snapshot.model_readiness} · Microphone consent: {'on' if snapshot.microphone_consent else 'off'} · "
@@ -865,7 +924,10 @@ class VoiceWindow(Adw.ApplicationWindow):
             )
             if snapshot.state is not State.RECORDING:
                 self._held = False
-            self.hold_button.set_sensitive(can_capture(snapshot) or self._hold_pressed)
+            self.hold_button.set_sensitive(
+                not self._settings_dirty
+                and (can_capture(snapshot) or self._hold_pressed)
+            )
             self.hold_button.set_label(
                 {
                     "loading": "Preparing capture · release to cancel",
@@ -880,7 +942,7 @@ class VoiceWindow(Adw.ApplicationWindow):
                 self.bind_shortcuts,
                 self.model_prepare,
             ):
-                widget.set_sensitive(not snapshot.practice)
+                widget.set_sensitive(not snapshot.practice and not self._settings_dirty)
             self.draft.set_text(snapshot.draft_text)
             editing = snapshot.state is State.EDITING
             action = snapshot.pending

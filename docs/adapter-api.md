@@ -188,5 +188,11 @@ action ID and allowed review states; any invalidation stops the subprocess. Loca
 held input separately latches physical press/release and renders microphone
 activity from snapshots. A duration cap can clear the Recording indicator without
 letting keyboard auto-repeat start a new capture. The held control stays sensitive
-until real key-up/pointer release arrives. Emergency Stop is outside the scrolling
+until real key-up/pointer release arrives. Key release is routed through the
+window capture phase so moving focus after a duration cap cannot strand its latch.
+Any editable Setup change immediately cancels/revokes live authority and runtime
+microphone consent, while preserving the unsaved form and saved preferences.
+Live capture, preparation, Connect and global binding controls stay blocked until
+Save; successful Save requires explicit preparation/reconnection again. The dirty
+form survives Practice/Live switches. Emergency Stop is outside the scrolling
 views; Escape is handled in the window's event-capture phase.

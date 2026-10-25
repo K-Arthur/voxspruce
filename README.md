@@ -63,7 +63,10 @@ python3 -m venv --system-site-packages .venv
    The built-in command phrases are English. Model licenses are separate.
 3. In Voice, turn off Practice. In Setup, choose the local model directory with
    the native folder chooser or enter a path, choose microphone consent explicitly
-   (default off), and Save. Save cancels work and revokes live grants.
+   (default off), and Save. Any Setup edit immediately pauses live input, revokes
+   runtime microphone consent and closes live grants. Unsaved changes block
+   preparation/reconnection/global bindings until Save. Save still requires
+   explicit preparation and reconnecting.
 4. Click **Prepare saved model** and wait for **ready**. This loads locally without
    opening the mic. Idle/loading/error cannot start live capture, including through
    global shortcuts. A typical small model needs about 300 MB of runtime memory;

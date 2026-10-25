@@ -194,3 +194,26 @@ compositor, actual text/Unicode delivery into another application, global shortc
 on the user's real desktop, physical microphone capture/lifetime/latency, Orca
 usability and sessions with intended voice-input users. These remain the manual
 release gates and are not implied by any of the software checks above.
+
+### Task 3 integrated review corrections
+
+Final code-quality review reproduced two UI-boundary defects: unsaved Setup
+changes could leave saved microphone consent/live grants active, and releasing
+Space after a duration cap while focus had moved elsewhere could strand the local
+hold latch. Three focused tests were observed failing before correction: immediate
+mic-consent revocation, every Setup field pausing authority across mode switches,
+and actual XTest cap→focus move→key-up→cancel→new focused hold.
+
+Every editable Setup change now immediately cancels work, revokes runtime
+microphone consent and live/shortcut grants, and resets readiness without saving
+the draft. Unsaved status remains visible and the draft survives Practice/Live
+switches. Hold, preparation, Connect and shortcut-binding actions remain gated
+until Save; Save still requires explicit preparation/reconnection. Direct
+`shortcut_event('hold_to_talk', True)` and local hold calls cannot capture in that
+paused state. A capture-phase window key-release handler receives release even
+when focus has moved away from the talk button.
+
+Fresh integrated verification after these corrections passed **202/202 tests**,
+including **22 GTK tests**, with the same private Xvfb/D-Bus command above. Ruff,
+compileall, isolated real-Gio protocol verification and wheel/sdist builds also
+passed. No new hardware/real GNOME validation is implied.
