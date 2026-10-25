@@ -11,9 +11,15 @@ from .storage import SettingsError, SettingsStore, default_settings_path
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="Offline, confirmed Wayland voice assistance"
+        description="Offline, confirmed Wayland voice assistance. Starts in isolated Practice mode."
     )
     subparsers = parser.add_subparsers(dest="command")
+    gui = subparsers.add_parser(
+        "gui", help="Launch native GTK app in isolated Practice mode"
+    )
+    gui.add_argument(
+        "--settings", type=Path, help="Use a specific private settings database"
+    )
     doctor = subparsers.add_parser(
         "doctor", help="Read-only local capability diagnostics"
     )
@@ -57,7 +63,11 @@ def main(argv=None):
         return 0
     from .app import main as app_main
 
-    return app_main()
+    return (
+        app_main(settings_path=arguments.settings)
+        if arguments.command == "gui"
+        else app_main()
+    )
 
 
 if __name__ == "__main__":
