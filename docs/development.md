@@ -54,8 +54,8 @@ icon under the user's data directory. It does not require root.
 
 `.github/workflows/ci.yml` runs on Ubuntu 24.04 with native dependencies, pure
 tests, Ruff, compileall, Xvfb GTK/XTest tests, private Gio protocol integration,
-wheel/sdist build and installed CLI/resource inspection. CI configuration does
-not claim a remote Actions run occurred until one is recorded.
+wheel/sdist build and installed CLI/resource inspection. The first successful
+public run passed all checks for commit `dcc7eb5` ([GitHub Actions](https://github.com/K-Arthur/wayland-voice-control/actions/runs/40237283310)).
 
 The default launcher starts a fresh isolated Practice controller. Live mode
 constructs `RequestTransport(GioWire())`, `RemoteDesktop`, `GlobalShortcuts` and

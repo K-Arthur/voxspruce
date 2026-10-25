@@ -185,10 +185,11 @@ these did not fail the checks.
 
 The Linux CI workflow is configured for pure tests, real GTK/XTest cases,
 protocol integration, static checks, distribution build and installed entry-point
-inspection. No remote GitHub Actions run is claimed here. Final independent
-specification and code-quality reviews approved commit `ab6cc25`; fresh review
-verification also passed all 203 tests, Ruff, compileall, isolated Gio protocol
-checks and wheel/sdist builds.
+inspection. GitHub Actions passed all jobs for commit `dcc7eb5`, including the
+installed entry-point checks ([run 40237283310](https://github.com/K-Arthur/wayland-voice-control/actions/runs/40237283310)).
+Final independent specification and code-quality reviews approved commit
+`ab6cc25`; fresh review verification also passed all 203 tests, Ruff, compileall,
+isolated Gio protocol checks and wheel/sdist builds.
 
 Still unperformed: real GNOME permission dialogs, grant denial/revocation by the
 compositor, actual text/Unicode delivery into another application, global shortcuts
