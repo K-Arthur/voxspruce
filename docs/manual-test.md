@@ -1,0 +1,45 @@
+# Real-session validation and the kill test
+
+This checklist is a release gate, not a claim that the tests have been performed. Automated adapters and Xvfb GUI tests cannot establish actual compositor input behavior or speech usability.
+
+## Record the test environment
+
+Record date, distribution/version, GNOME Shell version, Wayland session, xdg-desktop-portal and GNOME portal backend versions, PipeWire version, keyboard layout, model name/license, microphone, CPU, and application versions. Use a disposable text editor and a disposable unsent form. Do not begin in a terminal, password field, real message or production document.
+
+## Week-one input decision
+
+1. Start the application with microphone consent disabled. It must neither record nor present a portal permission dialog.
+2. Request keyboard access. Deny it. Confirm that all input remains blocked and retry is available.
+3. Request again. Grant keyboard access in the desktop dialog. Check that no screen-sharing source was requested and the app accurately reports granted permission.
+4. In a disposable editor, review and confirm `Wayland voice test 123.`. Select the editor during the visible countdown. Record exact output, duplication, missing characters, latency and whether any unexpected key is pressed.
+5. Repeat with punctuation and the languages/layouts being claimed. Record characters that fail. Do not generalize from ASCII success to Unicode support.
+6. Test next/previous field, copy/paste, select all and undo in disposable text. Test press Enter, close window and delete selection only in disposable contexts, after both confirmations. A single confirmation must never execute those actions.
+7. Revoke permission using the desktop controls while an action is pending and again during a countdown. There must be no later injection. Reconnect must not replay the old action.
+8. Press emergency stop during capture, review, countdown and a long insertion. Verify the microphone closes, pending work is discarded and keyboard permission ends. A partial insertion must be reported honestly; do not retry automatically.
+9. Verify modifier keys are not left pressed after success, cancellation, denial or an input failure. Check the physical keyboard still behaves normally.
+10. Quit/restart. No recording, transcript, pending action or permission token should return.
+
+**Pass:** The supported permission path works repeatedly and predictably on the recorded GNOME session without privileged input helpers. **Fail/rescope:** It cannot deliver reliable input through supported APIs. Keep practice/review usable, but do not advertise desktop-control support or replace the portal with a bypass.
+
+## Push-to-talk and local recognition
+
+- With mic consent off, mouse, keyboard and global shortcuts must not open capture.
+- Press/hold and release; inspect actual PipeWire capture lifetime. Test very short holds, rapid repeats, lost focus, lost pointer grab, Escape, permission revoke and application quit.
+- During model loading, release the held control: capture must not start afterward. During processing, stop: a late transcript must not revive the session.
+- Hold past the configured duration cap; capture must stop. If the recorder exits early or the microphone disappears, show a recoverable error.
+- Disconnect the network after local dependency/model setup. Dictation and commands must work without outbound connections. No temporary audio files or transcript logs should appear.
+- Compare recognized text to intended speech using at least two accents and two microphones. Record failures, not only successful takes. Do not publish an accuracy percentage without a defined sample and scoring method.
+
+## Shortcut and focus behavior
+
+- Decline shortcut binding and verify local controls still work.
+- Approve shortcut binding and display the actual assigned trigger. Test hold-to-talk press/release outside the app.
+- Review a transcript, focus the disposable destination and invoke confirm. Verify shortcut modifier keys do not change the injected text.
+- Hold or auto-repeat confirm: one physical confirmation event must not satisfy both stages of a risky action.
+- Change focus during countdown. The app cannot identify semantic target fields; the displayed instructions must make this limitation clear.
+
+## Accessibility and portfolio evidence
+
+Test full navigation with keyboard only and with Orca, including setup, denial/retry, transcript editing, the two confirmation stages and emergency stop. Test large system fonts, light/dark themes, a compact window and reduced motion. Ask two or three voice-input users which commands matter and whether hold-to-talk is workable with their input devices.
+
+Capture a captioned demo with dictation, two commands, one recognition error, cancellation, and permission revocation. Obtain participant consent before recording. Store neither participant audio nor private transcripts in the repository. Publish the exact tested matrix and unresolved limits alongside the demo.
