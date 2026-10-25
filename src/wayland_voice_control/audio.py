@@ -27,7 +27,9 @@ class _CaptureFault(AudioError):
 def load_local_model(path):
     import vosk
 
-    vosk.SetLogLevel(-1)
+    # Vosk filters native severities against this threshold; -1 still logs errors.
+    # Below assertion (-3), error (-2), warning (-1), and informational (0).
+    vosk.SetLogLevel(-4)
     return vosk.Model(str(path))
 
 

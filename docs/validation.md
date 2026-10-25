@@ -65,3 +65,23 @@ and duration rejection, truncated PCM and sanitized failures. No physical
 microphone or host portal was exercised.
 
 Independent paced benchmark recheck using the committed shared decoder: 8.308 seconds of audio, 1.881 seconds decoding (RTF 0.226), 407 ms maximum replay lag and 39 ms finalization. This confirms the benchmark is reproducible on this host, not a microphone-latency or recognition-accuracy claim. See [performance.md](performance.md) for all recorded runs, including slower bursts.
+
+
+## Native diagnostic regression
+
+Quality review reproduced native Vosk error output containing an invalid local
+model path despite `SetLogLevel(-1)`. Actual installed-Vosk subprocess tests were
+observed failing on fd 2 output before the correction. The shared loader now uses
+`-4`, below all Vosk handler severities. Runtime tests verify sanitized preparation
+for empty/corrupt local models and a real native sample-rate decode error using
+generated PCM silence. They skip cleanly when the optional Vosk dependency or
+local model fixture is absent. Generic Kaldi option usage can bypass the handler;
+the benchmark CLI therefore runs the same decoder in a bounded child and discards
+native stderr, forwarding only validated timing/environment metadata.
+
+All 138 tests, Ruff and the isolated Gio protocol check pass after the change.
+The actual benchmark was rerun through the child wrapper: the same 8.308-second
+fixture still yields 65 blocks and 63 partial calls; model load 0.786 s, decode
+1.480 s, realtime factor 0.178, p50/p95/max blocks 5.69/69.63/439.64 ms and finalization
+26.14 ms. Metric boundaries remain inside the child; timing variation does not
+establish a speedup from isolation. No microphone or host portal was accessed.

@@ -32,3 +32,22 @@ clear pending draft data. Explicit model preparation loads only the local model
 off-thread and starts no microphone process, so it needs no microphone consent
 or keyboard grant. The offline speech benchmark reads only a user-supplied local
 WAV/model, prints timings without transcripts, and writes no audio or content.
+
+
+## Native speech diagnostics
+
+The shared model loader sets Vosk's native verbosity to `-4`, below assertion
+(`-3`), error (`-2`), warning (`-1`) and informational (`0`) severities. The earlier
+`-1` setting suppressed informational messages while still exposing native error
+messages, including model paths. This uses Vosk's own logging threshold and does
+not redirect process-wide stderr in the multithreaded desktop application.
+The mechanism is defined by the pinned [Vosk 0.3.45 log handler](https://github.com/alphacep/vosk-api/blob/v0.3.45/src/model.cc)
+and [Kaldi severity definitions](https://github.com/alphacep/kaldi/blob/vosk/src/base/kaldi-error.h).
+
+Native libraries are not a security sandbox: Kaldi can print generic option
+usage outside that handler, and supplied model configuration can change native
+logging settings. Application callback errors remain fixed messages. The
+standalone benchmark additionally discards its dedicated native child's stderr,
+bounds/validates success metadata and never forwards native tracebacks or content.
+Actual subprocess tests capture native file-descriptor output; Python
+`redirect_stderr` alone cannot verify this boundary.

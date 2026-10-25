@@ -31,7 +31,11 @@ The tool accepts uncompressed mono 16 kHz 16-bit WAVs between zero and 60 second
 (excluding zero), validates the declared format/length and detects truncated PCM.
 It reads bounded blocks through the application's actual streaming decoder. It
 opens no microphone, uses no network, creates no audio copy and prints no
-transcript. Failures print a fixed message without dependency tracebacks/content.
+transcript. The CLI performs native work in a dedicated child with stderr discarded. It
+accepts at most 8192 bytes of validated timing/environment metadata and enforces
+a 120-second child limit, then prints one fixed failure message on errors. Native
+dependency output and tracebacks are not forwarded. These bounds belong to the
+standalone benchmark; the desktop capture worker remains in-process.
 The model and WAV must be supplied separately; runtime does not download them.
 
 `cold_load_seconds` measures loading a model in a new process, including the first
@@ -56,13 +60,17 @@ AMD Ryzen 7 3750H with Radeon Vega Mobile Gfx; CachyOS/KDE host,
 Linux 7.2.9-2-cachyos x86_64, glibc 2.44; Python 3.14.8; Vosk 0.3.45;
 `vosk-model-small-en-us-0.15`. The public upstream fixture has 8.308 seconds of
 speech (65 blocks, 63 partial calls). Each row is a separate process on the same
-host, not a statistically representative hardware sample.
+host, not a statistically representative hardware sample. The isolated CLI
+recheck measures inside the child, preserving the metric definitions; process
+startup is outside model-load/decode time. Its faster result reflects observed
+run-to-run conditions and is not evidence that isolation improves decoding.
 
 | Run | Model load (s) | Decode (s) | Realtime factor | Chunk p50 (ms) | Chunk p95 (ms) | Max chunk (ms) | Finalize (ms) | Max paced lag (ms) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Unpaced 1 | 1.981 | 3.336 | 0.402 | 13.64 | 132.30 | 1244.70 | 59.58 | — |
 | Unpaced 2 | 1.588 | 3.450 | 0.415 | 10.18 | 193.76 | 817.81 | 64.92 | — |
 | Paced | 1.753 | 2.176 | 0.262 | 7.59 | 107.26 | 644.45 | 44.62 | 644.55 |
+| Unpaced, isolated CLI recheck | 0.786 | 1.480 | 0.178 | 5.69 | 69.63 | 439.64 | 26.14 | — |
 | Independent paced recheck | 1.519 | 1.881 | 0.226 | 7.12 | 127.08 | 407.04 | 39.00 | 407.12 |
 
 Average decode throughput meets the host target, while individual bursts can
