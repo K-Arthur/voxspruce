@@ -198,11 +198,12 @@ class AudioCapture:
                 last_draft = self.clock()
 
             def deliver():
-                nonlocal draft_queued
+                nonlocal draft_queued, last_draft
                 with self._lock:
                     draft_queued = False
                     if generation != self._generation or stop.is_set():
                         return
+                    last_draft = self.clock()
                     text = self._pending_draft
                     self._pending_draft = ""
                 on_draft(text)
@@ -272,6 +273,9 @@ class AudioCapture:
                     "then try a new recording."
                 )
             finally:
+                with self._lock:
+                    stop.set()
+                    self._pending_draft = ""
                 cleanup_failed = False
                 if timer:
                     try:

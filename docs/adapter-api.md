@@ -67,3 +67,43 @@ key events in memory and never touches the host portal, compositor, or microphon
 The separate real-session checklist still requires manual GNOME/microphone tests.
 No standalone live fixed-text portal test is provided; live validation currently
 uses the speech path and its normal review/confirmation flow.
+
+## Streaming drafts and explicit model preparation
+
+`Snapshot.draft_text` is an in-memory provisional string (up to 4000 characters).
+Render it read-only while recording; it may change or disappear and must never be
+copied into `Workflow.receive_transcript`, a pending action, or an approval call.
+`finish_recording()` clears it immediately and waits for the final review result.
+Processing/final result/failure/cancel/stop/settings changes also clear it. The
+final transcript still enters only through the gated final-result callback.
+
+`Snapshot.model_readiness` is `idle`, `loading`, `ready` or `error`. Call
+`Controller.prepare_model()` from the setup button. It returns true when accepted;
+false means practice mode, an invalid path or previous speech work still stopping
+(check snapshot status/error). It cancels pending action work, loads only the
+existing local `settings.model_path` on a worker, and requests neither microphone
+nor desktop permission. A stale completion cannot affect newer work. Successful
+readiness survives ordinary cancel/stop because the model remains cached; applying
+settings invalidates readiness and requires explicit preparation again. First-use
+capture also reports loading/ready/error. Practice prohibits both preparation and
+capture. Native controls can require readiness, explicit microphone consent and
+keyboard permission before enabling held live capture.
+
+Direct adapter API:
+
+- `AudioCapture.prepare(model_path, *, on_state, on_error) -> bool` emits `loading`
+  then `ready` or `error` via its dispatcher; errors contain only fixed application
+  messages. An invalid local path raises `AudioError` before worker creation.
+- `AudioCapture.start(..., on_draft=None)` adds an optional provisional callback;
+  existing final `on_result` and activity/error callbacks retain their meanings.
+- Preparation and capture share one worker exclusion and one model cache. Busy
+  calls return false. Cancel invalidates queued success/error/readiness/draft
+  callbacks immediately; worker exclusion lasts until old cleanup completes.
+- Draft callbacks are coalesced through one bounded mailbox and throttled to at
+  most approximately five updates/second with an injectable monotonic `clock`.
+  A stalled UI cannot accumulate one draft callback/string per PCM block. Release
+  suppresses queued drafts, while final recognition drains only the bounded PCM
+  already described above.
+
+See [performance.md](performance.md) for reproducible offline benchmarks and the
+limits of the observed throughput/latency evidence.

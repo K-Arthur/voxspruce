@@ -391,7 +391,7 @@ class AudioTests(unittest.TestCase):
             if self.reads == 2:
                 self.flush()
                 self.assertEqual(drafts, ["draft"])
-            if self.reads == 6:
+            if self.reads == 8:
                 self.assertLessEqual(len(self.callbacks), 1)
                 self.flush()
                 self.assertEqual(drafts, ["draft", "draft"])
@@ -539,3 +539,45 @@ class AudioTests(unittest.TestCase):
         self.flush()
         self.assertEqual(states, [])
         self.assertEqual(self.spawned, [])
+
+    def test_failed_capture_discards_pending_draft_without_empty_late_callback(self):
+        drafts = []
+        self.recognizer.AcceptWaveform = lambda _: False
+        self.recognizer.PartialResult = lambda: '{"partial":"private draft"}'
+
+        def read(*_):
+            self.reads += 1
+            if self.reads == 2:
+                raise RuntimeError("capture fault")
+            return b"\0\0"
+
+        self.capture.read_chunk = read
+        self.start(on_draft=drafts.append)
+        self.jobs.pop()()
+        self.flush()
+        self.assertEqual(drafts, [])
+        self.assertEqual(len(self.errors), 1)
+
+    def test_resuming_stalled_dispatch_does_not_burst_draft_updates(self):
+        now, drafts = [0.0], []
+        self.capture.clock = lambda: now[0]
+        self.recognizer.AcceptWaveform = lambda _: False
+        self.recognizer.PartialResult = lambda: '{"partial":"draft"}'
+
+        def read(*_):
+            self.reads += 1
+            if self.reads == 2:
+                now[0] = 0.9
+                self.flush()
+            if self.reads == 3:
+                now[0] = 0.91
+                self.flush()
+                self.capture.stop()
+                return b""
+            return b"\0\0"
+
+        self.capture.read_chunk = read
+        self.start(on_draft=lambda text: drafts.append((now[0], text)))
+        self.jobs.pop()()
+        self.flush()
+        self.assertEqual(drafts, [(0.9, "draft")])

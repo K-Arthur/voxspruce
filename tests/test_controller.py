@@ -405,6 +405,34 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(self.controller.snapshot.model_readiness, "idle")
         self.assertIsNone(self.controller.snapshot.error)
 
+    def test_capture_loading_error_and_busy_start_do_not_leave_model_loading(self):
+        self.controller.start_recording()
+        self.audio.callbacks["on_error"](RuntimeError("model failed"))
+        self.assertEqual(self.controller.snapshot.model_readiness, "error")
+        self.controller.reset_error()
+        self.audio.start = lambda *args, **kwargs: False
+        self.assertFalse(self.controller.start_recording())
+        self.assertEqual(self.controller.snapshot.model_readiness, "idle")
+
+    def test_release_during_initial_load_can_report_model_ready_without_recording(self):
+        self.controller.start_recording()
+        self.controller.finish_recording()
+        self.audio.callbacks["on_result"]("")
+        self.assertEqual(self.controller.snapshot.model_readiness, "ready")
+        self.assertEqual(self.controller.snapshot.draft_text, "")
+
+    def test_completed_model_readiness_survives_cancel_but_settings_invalidate_it(self):
+        preparations = []
+        self.audio.prepare = lambda path, **kwargs: preparations.append(kwargs) or True
+        self.controller.prepare_model()
+        preparations[-1]["on_state"]("ready")
+        self.controller.cancel()
+        self.assertEqual(self.controller.snapshot.model_readiness, "ready")
+        self.controller.stop()
+        self.assertEqual(self.controller.snapshot.model_readiness, "ready")
+        self.controller.apply_settings(self.settings)
+        self.assertEqual(self.controller.snapshot.model_readiness, "idle")
+
 
 class ControllerPortalLifecycleTests(unittest.TestCase):
     def make_controller(self, dispatch=lambda callback: callback()):

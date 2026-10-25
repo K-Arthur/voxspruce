@@ -23,3 +23,12 @@ Dictation and command modes are separate. Every action is reviewed and confirmed
 The portal cannot attest which application's field receives input. The user chooses the destination. App-specific keyboard behavior, clipboard contents, focus changes and partial failures remain relevant: this software does not claim that an approved action can never have unintended effects. A failed insertion must not be retried automatically.
 
 This is an experimental community tool, not certified assistive technology. The GNOME compatibility test and accessibility testing with intended users are required before a stable support claim.
+
+Live draft text is provisional, bounded and display-only. Partial results never
+enter the action/confirmation workflow; release clears the draft before final
+review. A stalled UI retains one bounded draft mailbox, rather than a transcript
+history or one callback payload per audio block. Cancel, finalization and failure
+clear pending draft data. Explicit model preparation loads only the local model
+off-thread and starts no microphone process, so it needs no microphone consent
+or keyboard grant. The offline speech benchmark reads only a user-supplied local
+WAV/model, prints timings without transcripts, and writes no audio or content.

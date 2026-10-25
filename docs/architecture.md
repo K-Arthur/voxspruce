@@ -27,7 +27,9 @@ flowchart LR
 | --- | --- | --- |
 | `domain.py`, `commands.py` | Exact grammar, immutable action IDs, validation, expiry, confirmation and consumption | Read devices, send input, persist content |
 | `storage.py`, `schema.sql` | Validate and atomically persist preferences | Store recordings, transcripts, action history or permission tokens |
-| `audio.py` | Load local models and own one bounded capture worker/recorder | Download models, record when not held, expose private dependency errors |
+| `audio.py` | Prepare/cache local models without microphone access; own one bounded capture worker/recorder and coalesced draft mailbox | Download models, record when not held, expose private dependency errors |
+| `speech.py` | Decode bounded streaming partials and completed segments for both capture and offline benchmarks | Convert provisional text into final review content |
+| `speech_benchmark.py` | Measure local WAV decode timings through the shared decoder | Open a microphone, print transcripts, copy audio or use the network |
 | `transport.py`, `gio_transport.py` | Correlate asynchronous D-Bus requests and responses; dispatch onto GLib | Infer consent from capability availability |
 | `portal.py` | Keyboard-only RemoteDesktop and explicit GlobalShortcuts sessions | Use privileged input helpers or silently regain permission |
 | `controller.py` | Join adapters to the policy, cancel stale callbacks, publish immutable snapshots | Treat a draft or stale callback as approval |

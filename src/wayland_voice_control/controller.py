@@ -317,6 +317,7 @@ class Controller:
         def result(text):
             def apply():
                 self._draft = ""
+                self._model_readiness = "ready"
                 if self._workflow.state is State.RECORDING:
                     self._workflow.finish_recording(recording_id)
                 try:
@@ -343,6 +344,7 @@ class Controller:
                 on_draft=draft,
             )
             if not started:
+                self._model_readiness = "idle"
                 self._workflow.cancel()
                 self._recording_id = None
                 self._publish(
@@ -486,6 +488,8 @@ class Controller:
 
     def _fail(self, message):
         self._draft = ""
+        if self._model_readiness == "loading":
+            self._model_readiness = "error"
         self._workflow.fail(message)
         self._activity = "idle"
         self._recording_id = None
@@ -512,7 +516,8 @@ class Controller:
         self._recording_id = None
         self._activity = "idle"
         self._draft = ""
-        self._model_readiness = "idle"
+        if self._model_readiness != "ready":
+            self._model_readiness = "idle"
         self._publish("Cancelled. Pending content discarded.")
 
     def stop(self):
@@ -542,6 +547,7 @@ class Controller:
         self._assert_thread()
         self.stop()
         self.settings = settings
+        self._model_readiness = "idle"
         self._workflow = self._new_workflow()
         if self.practice:
             self._workflow.set_permission(True)
