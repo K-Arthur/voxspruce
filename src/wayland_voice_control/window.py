@@ -575,6 +575,10 @@ class VoiceWindow(Adw.ApplicationWindow):
     def _active_changed(self, *_):
         if not self.is_active():
             self._cancel_hold()
+            # Key-up may go to another top-level window. Abandon this window's
+            # physical press ownership even if a duration cap already ended capture.
+            self._hold_pressed = False
+            self.render(self.controller.snapshot)
 
     def begin_edit(self):
         identity = self._reviewed_id

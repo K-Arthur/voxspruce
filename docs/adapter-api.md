@@ -190,6 +190,8 @@ activity from snapshots. A duration cap can clear the Recording indicator withou
 letting keyboard auto-repeat start a new capture. The held control stays sensitive
 until real key-up/pointer release arrives. Key release is routed through the
 window capture phase so moving focus after a duration cap cannot strand its latch.
+Top-level deactivation abandons press ownership because an external key-up may
+never reach this window; active-window auto-repeat remains latched until release.
 Any editable Setup change immediately cancels/revokes live authority and runtime
 microphone consent, while preserving the unsaved form and saved preferences.
 Live capture, preparation, Connect and global binding controls stay blocked until

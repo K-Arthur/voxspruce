@@ -388,10 +388,16 @@ class NativeWindowTests(unittest.TestCase):
         self.assertEqual(self.store.load().model_path, "/other/model")
 
     def test_real_space_release_after_duration_cap_allows_a_new_hold(self):
+        self._assert_real_space_release_after_cap(external=False)
+
+    def test_real_space_release_in_external_window_allows_a_new_hold(self):
+        self._assert_real_space_release_after_cap(external=True)
+
+    def _assert_real_space_release_after_cap(self, *, external):
         import ctypes
         import ctypes.util
 
-        from gi.repository import Gdk, GLib
+        from gi.repository import Gdk, GLib, Gtk
 
         x11 = ctypes.CDLL(ctypes.util.find_library("X11"))
         xtst = ctypes.CDLL(ctypes.util.find_library("Xtst"))
@@ -434,6 +440,7 @@ class NativeWindowTests(unittest.TestCase):
         x11.XSetInputFocus(display, self.window.get_surface().get_xid(), 1, 0)
         self.window.hold_button.grab_focus()
         code = x11.XKeysymToKeycode(display, Gdk.KEY_space)
+        external_window = None
         try:
             xtst.XTestFakeKeyEvent(display, code, True, 0)
             x11.XFlush(display)
@@ -441,12 +448,30 @@ class NativeWindowTests(unittest.TestCase):
             self.assertTrue(self.window._held)
             controller.audio.callbacks["on_activity"]("processing")
             controller.audio.callbacks["on_result"]("duration cap reached")
-            self.window.command_mode.grab_focus()
-            pump()
+            if external:
+                external_window = Gtk.Window(
+                    title="External key target", default_width=200, default_height=100
+                )
+                external_window.present()
+                pump()
+                x11.XSetInputFocus(
+                    display, external_window.get_surface().get_xid(), 1, 0
+                )
+                x11.XFlush(display)
+                pump()
+                self.assertFalse(self.window.is_active())
+            else:
+                self.window.command_mode.grab_focus()
+                pump()
             xtst.XTestFakeKeyEvent(display, code, False, 0)
             x11.XFlush(display)
             pump()
             self.assertFalse(self.window._hold_pressed)
+            if external:
+                self.window.present()
+                x11.XSetInputFocus(display, self.window.get_surface().get_xid(), 1, 0)
+                x11.XFlush(display)
+                pump()
             controller.cancel()
             self.window.hold_button.grab_focus()
             xtst.XTestFakeKeyEvent(display, code, True, 0)
@@ -457,6 +482,9 @@ class NativeWindowTests(unittest.TestCase):
             xtst.XTestFakeKeyEvent(display, code, False, 0)
             x11.XFlush(display)
             pump()
+            if external_window:
+                external_window.destroy()
+                pump()
             x11.XCloseDisplay(display)
 
     def test_native_icon_is_available_for_source_and_wheel_runs(self):

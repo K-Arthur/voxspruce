@@ -26,7 +26,7 @@ Record date, distribution/version, GNOME Shell version, Wayland session, xdg-des
 - With mic consent off, mouse, keyboard and global shortcuts must not open capture.
 - Press/hold and release; inspect actual PipeWire capture lifetime. Test very short holds, rapid repeats, lost focus, lost pointer grab, Escape, permission revoke and application quit.
 - While model preparation is idle/loading/error, neither local nor global hold may start capture. Prepare explicitly, then test release during microphone startup: capture must not start afterward. During processing, stop: a late transcript must not revive the session.
-- Hold past the configured duration cap; capture must stop, the recording indicator must clear, auto-repeat must not restart it, and a physical release followed by a new hold must work. If the recorder exits early or the microphone disappears, show a recoverable error.
+- Hold past the configured duration cap; capture must stop, the recording indicator must clear, auto-repeat must not restart it, and a physical release followed by a new hold must work. Repeat after moving focus to another widget and another top-level window before release; refocusing the app must allow a new genuine press. If the recorder exits early or the microphone disappears, show a recoverable error.
 - Disconnect the network after local dependency/model setup. Dictation and commands must work without outbound connections. No temporary audio files or transcript logs should appear.
 - Compare recognized text to intended speech using at least two accents and two microphones. Record failures, not only successful takes. Do not publish an accuracy percentage without a defined sample and scoring method.
 

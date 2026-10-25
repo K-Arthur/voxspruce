@@ -217,3 +217,16 @@ Fresh integrated verification after these corrections passed **202/202 tests**,
 including **22 GTK tests**, with the same private Xvfb/D-Bus command above. Ruff,
 compileall, isolated real-Gio protocol verification and wheel/sdist builds also
 passed. No new hardware/real GNOME validation is implied.
+
+The final hold-ownership regression additionally moves real XTest keyboard focus
+to a separate mapped X11 top-level after the duration cap and releases Space
+there. It was observed RED with the original latch still true. Top-level window
+deactivation now cancels active held capture and unconditionally abandons its
+physical press ownership, including when a cap has already ended capture. The
+same-window auto-repeat guard remains intact. Returning focus and making a new
+genuine Space press is verified with real private-display events.
+
+Fresh checks after that correction pass **203/203 tests**, including **23 GTK
+tests**, plus Ruff, compileall, private real-Gio protocol checks and wheel/sdist
+builds. This extends headless event-routing evidence; real GNOME input and
+microphone validation remain unperformed.
