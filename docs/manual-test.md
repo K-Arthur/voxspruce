@@ -43,3 +43,31 @@ Record date, distribution/version, GNOME Shell version, Wayland session, xdg-des
 Test full navigation with keyboard only and with Orca, including setup, denial/retry, transcript editing, the two confirmation stages and emergency stop. Test large system fonts, light/dark themes, a compact window and reduced motion. Ask two or three voice-input users which commands matter and whether hold-to-talk is workable with their input devices.
 
 Capture a captioned demo with dictation, two commands, one recognition error, cancellation, and permission revocation. Obtain participant consent before recording. Store neither participant audio nor private transcripts in the repository. Publish the exact tested matrix and unresolved limits alongside the demo.
+
+
+## Custom shortcut and edit regression checklist
+
+Use disposable destinations and explicit permission; this checklist is not a
+record of hardware verification. Configure `save document` → `Ctrl+S` with a clear
+description. Check exact matching, normalized case/spaces, disabled state,
+built-in/duplicate collisions, invalid/multiple chords and field length errors.
+Practice must display the phrase, exact chord, description, high risk and simulated
+result without microphone/portal access. Both confirmations remain necessary.
+
+During live held recognition, final review, second confirmation and focus
+countdown, edit/disable/delete a custom shortcut. Check microphone/draft cleanup,
+cancelled approval/timer, ignored late callbacks and global confirm doing nothing.
+A bound action already handed to input must release attempted keys, never change
+its chord or retry. Test modifier cleanup after cancellation and injected failures
+in the isolated portal tests before real-session checks.
+
+Arm dictation, enter editing, select all, delete, and retype. Global confirm during
+the empty or newly typed buffer must send nothing. Invalid controls must remain
+correctable. Explicit re-review creates a fresh ID/expiry and requires confirmation
+again. Repeat from second confirmation; cancel an edit and attempt a stale edit
+signal during newer work. Check expiry before editing and stale countdown callbacks.
+
+Back up an intentional v1 configuration, open it in the new app and verify every
+preference survives the atomic v2 migration. Restart with enabled/disabled custom
+shortcuts, edit/delete them, and verify reset removes them while restoring defaults
+and microphone consent off. Never put recordings or private speech in fixtures.

@@ -1,4 +1,4 @@
-"""Validated SQLite settings only: no speech, transcript, action, or history data."""
+"""Validated preferences and intentional shortcuts; no recognition/history data."""
 
 import math
 import os

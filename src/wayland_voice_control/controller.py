@@ -450,6 +450,7 @@ class Controller:
 
     def update_custom_shortcut(self, item):
         self._assert_thread()
+        command_catalogue((item,))
         if not any(current.id == item.id for current in self._custom_shortcuts):
             raise DomainError("Shortcut ID does not exist.")
         return self.replace_custom_shortcuts(

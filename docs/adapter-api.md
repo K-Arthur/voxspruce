@@ -27,7 +27,18 @@ may round it upward for display. Do not infer microphone activity from workflow
 - `start_recording(mode=None)` begins a held capture using the selected mode;
   `finish_recording()` releases it. False means capture did not start; display
   the snapshot status. Duration-cap completion also finishes the workflow.
-- `edit(action_id, text)` revokes approval and creates a new review identity.
+- `begin_edit(action_id) -> str | None` synchronously removes pending approval,
+  cancels the countdown and returns an opaque edit token. Call it before the
+  native editor changes its buffer. While `State.EDITING`, keep the complete
+  buffer in the UI, including empty/invalid intermediate text. Global confirm
+  sees no pending action.
+- `finish_edit(edit_token, text) -> bool` explicitly re-reviews the buffer. Invalid
+  content remains editable; display snapshot status. Success creates a fresh ID,
+  expiry and no approvals. `snapshot.edit_token` identifies the active edit.
+  Stale tokens/IDs cannot change newer work. `cancel()` discards the edit. The
+  original action TTL is checked at edit start; re-review starts a new TTL.
+- `edit(action_id, text)` remains an atomic compatibility method. Native editor
+  change signals must use staged editing instead.
 - `confirm(action_id, source="local")` performs only the first confirmation.
   `confirm_second(action_id)` is a separate UI action for risky commands. Bind
   it to a separately labeled control, never to the first-confirm handler.
@@ -46,7 +57,10 @@ may round it upward for display. Do not infer microphone activity from workflow
 For a separate practice coordinator, supply `remote=PracticeInput()` and
 `practice=True`. Only `review_text(text, mode)` creates examples. Capture is
 rejected even when saved microphone consent is enabled, and shortcut adapters are
-ignored. This no-op adapter has no portal or desktop transport. Live
+ignored. This simulated adapter has no portal or desktop transport.
+`Snapshot.practice_last_action` is the last simulated immutable action, available
+after the countdown for a clearly labeled output preview. It is never evidence
+of actual desktop input. Live
 `review_text` calls are rejected.
 
 `AudioCapture.start` validates explicit microphone consent and a local existing
@@ -58,7 +72,10 @@ the model is cached. New capture is excluded until previous child cleanup ends.
 
 `doctor [--json]` performs read-only introspection/property checks and reads an
 existing settings DB without creating one. Capability availability is distinct
-from permission or compositor compatibility. `commands` prints the fixed allowlist.
+from permission or compositor compatibility. `commands [--settings PATH]` prints built-in and custom configuration, including
+exact chords, custom/high risk, descriptions and disabled entries. A missing
+default file is not created. Opening an existing legacy database performs the
+normal transactional migration; `doctor` remains strictly read-only.
 The default CLI entry lazily imports the native app.
 
 `PYTHONPATH=src .venv/bin/python scripts/check-portal-protocol.py` verifies the real
@@ -107,3 +124,39 @@ Direct adapter API:
 
 See [performance.md](performance.md) for reproducible offline benchmarks and the
 limits of the observed throughput/latency evidence.
+
+## Custom shortcut manager and review
+
+Create `CustomShortcut(id, phrase, key_chord, description="", enabled=True)` from
+`commands`; validation raises `DomainError`. Use stable IDs (for example,
+`uuid4().hex`) for new entries and preserve the ID on edits. Chords canonicalize
+to modifiers in `Ctrl`, `Alt`, `Shift`, `Super` order and one supported base key.
+The parser accepts ASCII letters/digits, `Space`, `Return`, `Tab`, `Escape`,
+`BackSpace`, `Delete`, `Home`, `End`, `Left`, `Right`, `Up`, `Down`, `PageUp`,
+`PageDown`, and `F1`–`F12`; tokens are case-insensitive. It rejects repeated or
+modifier-only chords, unknown keysyms, media keys and multi-stroke sequences.
+`parse_key_chord(value)` returns `(canonical_string, keysym_tuple)`; the portal
+independently calls it and releases every attempted press on failure/cancellation.
+
+Pass optional `custom_shortcuts=tuple(...)` to `Controller`, or omit it to load
+from the passed store (empty when no store is present). Main-thread APIs:
+
+- `replace_custom_shortcuts(items) -> tuple`: validated full replacement.
+- `add_custom_shortcut(item) -> tuple`: reject duplicate IDs/phrases.
+- `update_custom_shortcut(item) -> tuple`: replace the matching stable ID.
+- `delete_custom_shortcut(identity) -> tuple`: delete the matching ID.
+
+Each mutation validates first, cancels capture/drafts/pending review/editing/
+countdown/input and queued callbacks, persists through the configured store, then
+activates the immutable catalogue. A storage failure leaves the previous active
+catalogue and safely cancelled work. `reset_settings()` also empties the catalogue
+and revokes live grants. Catch `DomainError` and `SettingsError` for manager errors.
+
+`Snapshot.custom_shortcuts` is an immutable tuple including disabled entries;
+`Snapshot.commands` is the immutable merged enabled catalogue. `PendingAction`
+adds `key_chord`, `phrase`, `description` and `custom` to the existing ID/kind/
+payload/risk/timestamps. For every command review and practice preview, display
+its bound phrase, exact chord, description and high-risk marker. All custom
+commands have `Risk.HIGH` because effects depend on the destination application;
+explain this and require the separate second confirmation. Never resolve a
+pending action's current settings to decide what chord to show or execute.

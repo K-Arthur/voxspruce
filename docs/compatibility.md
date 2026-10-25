@@ -29,8 +29,14 @@ normal recognition and review then run offline.
 
 ## Known practical limits
 
-- English command phrases are fixed; use an English recognition model for command
-  mode. Dictation quality depends on the selected model and language.
+- Built-in command phrases are English. Custom phrases match exact case/whitespace
+  normalized speech only; no fuzzy matching is performed. Recognition depends on
+  the selected local model's language and vocabulary. Dictation quality also
+  depends on that model.
+- Custom chords use a bounded ASCII/named-key allowlist. Their application effects,
+  modifier handling and keyboard layouts require real-session validation. Every
+  custom shortcut requires two distinct confirmations. Scripts, text macros,
+  key sequences and OS media keys are unsupported.
 - A small speech model trades accuracy for size and speed. Live partial drafts
   can revise earlier words. Review the final text before approving it.
 - The user chooses the target application and field. The portal cannot attest

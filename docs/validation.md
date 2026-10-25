@@ -87,3 +87,29 @@ fixture still yields 65 blocks and 63 partial calls; model load 0.786 s, decode
 establish a speedup from isolation. No microphone or host portal was accessed.
 
 Task 2b specification and quality reviews approved the realtime speech work and native-diagnostic correction (`ce91224`). The independent quality recheck passed all 138 tests, including actual Vosk subprocess stderr tests.
+
+
+## Task 2c: custom shortcuts and safe edit core
+
+Commits `7ecbb68` and `eddb873` implement the bounded custom phrase/chord catalogue,
+immutable reviewed key plans, staged editing, transactional v1→v2 database upgrade,
+configuration CRUD, main-thread controller management and isolated practice output.
+New behavior was observed RED before production implementation, then GREEN.
+
+On 25 October 2026 the full command
+`PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v` passed **168 tests**.
+`.venv/bin/ruff check src tests scripts` passed. The private
+`PYTHONPATH=src .venv/bin/python scripts/check-portal-protocol.py` passed real Gio
+request/response, keyboard-only options, Unicode events, shortcut events and
+revocation against an isolated fake D-Bus service. Added tests cover direct portal
+chord validation and modifier release on errors/cancellation, normalization and
+collisions, custom two-stage approval, staged empty/invalid edits, stale IDs,
+global-confirm disarming, catalogue cancellation during capture/countdown/input,
+SQLite constraints/rollback/corruption/future versions, preservation of every
+legacy preference and practice preview isolation. A wheel build includes both
+new-schema and migration SQL resources.
+
+No GUI, host keyboard permission, microphone or real desktop input was started
+for this milestone. Native controls and on-screen chord/risk review are the next
+integration task. Independent specification and code-quality reviews remain
+pending; this evidence does not claim hardware compatibility.

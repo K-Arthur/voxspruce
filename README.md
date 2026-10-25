@@ -5,8 +5,8 @@ result, then explicitly confirm dictation or a small desktop command.
 
 This repository is being built in reviewed milestones. The domain engine,
 preferences schema, keyboard/shortcut portal adapters, local streaming speech,
-diagnostics and reproducible speech benchmark are implemented. Custom voice
-shortcuts and the native GTK4/libadwaita interface are the next milestones.
+diagnostics, reproducible speech benchmark, custom voice shortcuts and safe
+transcript editing are implemented. The native GTK4/libadwaita interface is next.
 The default GUI entry point is not ready in this intermediate revision.
 
 GNOME Wayland is the intended first validation target. Real GNOME input,
@@ -26,8 +26,15 @@ PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
 Normal operation uses local models and no cloud recognition, account, telemetry,
 audio storage or automatic model download. Input uses an explicitly granted
 keyboard portal session. Every action is reviewed and confirmed, with a separate
-second confirmation for risky commands. There is no always-listening mode or
+second confirmation for risky commands and every custom shortcut. There is no always-listening mode or
 privileged input-helper fallback.
+
+Custom configuration maps an exact phrase (for example, `save document`) to one
+validated chord (`Ctrl+S`), with a description and enable switch. Built-ins cannot
+be replaced. Custom actions always require two distinct confirmations; changing
+the catalogue discards pending work. `commands [--settings PATH]` shows built-in
+and configured phrases, exact chords, risk, descriptions and disabled entries.
+See [the UI/controller API](docs/adapter-api.md) and [configuration schema](docs/schema.md).
 
 ## Design and evidence
 

@@ -60,7 +60,11 @@ stateDiagram-v2
     Idle --> Recording: hold + permission + mic consent
     Recording --> Processing: release or duration cap
     Processing --> Reviewing: finalized valid transcript
-    Reviewing --> Reviewing: edit creates a new action ID
+    Reviewing --> Editing: begin edit; discard pending action
+    SecondConfirmation --> Editing: begin edit; discard approvals
+    Armed --> Editing: begin edit; cancel countdown
+    Editing --> Editing: empty or invalid buffer
+    Editing --> Reviewing: explicit valid re-review; new ID and expiry
     Reviewing --> Armed: confirm ordinary action
     Reviewing --> SecondConfirmation: confirm risky command
     SecondConfirmation --> Armed: distinct second confirmation
@@ -78,11 +82,14 @@ event with an old action ID cannot cancel or overwrite newer work. Expiry is
 checked when approval is used, including immediately before execution.
 
 Ordinary confirmation is required for every insertion or command. Press Enter,
-close window and delete selection require a second, distinct local confirmation.
+close window, delete selection and every custom shortcut require a second, distinct local confirmation.
 The global confirm shortcut cannot satisfy that second stage. Dictation is
 literal text; line breaks, tabs and other control/formatting characters are
 rejected. The command parser accepts one exact allowlisted phrase, with case and
-whitespace normalization only.
+whitespace normalization only. The merged catalogue is immutable. A recognized
+custom action binds its chord, phrase and description at review time; later
+configuration changes cannot alter it. Catalogue mutation cancels all transient
+work before new configuration becomes active.
 
 ## Threads, cancellation and permissions
 

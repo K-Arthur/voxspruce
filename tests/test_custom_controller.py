@@ -144,6 +144,72 @@ class CustomControllerTests(unittest.TestCase):
         self.assertFalse(self.audio.callbacks)
         self.assertFalse(self.remote.actions)
 
+    def test_persistent_controller_loads_configuration_and_reset_clears_it(self):
+        import tempfile
+        from pathlib import Path
+
+        from wayland_voice_control.storage import SettingsStore
+
+        with tempfile.TemporaryDirectory() as directory:
+            store = SettingsStore(Path(directory) / "private" / "settings.db")
+            store.add_custom_shortcut(self.save)
+            controller = Controller(
+                settings=store.load(),
+                store=store,
+                remote=PracticeInput(),
+                audio=self.audio,
+                schedule=self.scheduler.schedule,
+                dispatch=lambda f: f(),
+                practice=True,
+            )
+            self.assertEqual(controller.snapshot.custom_shortcuts, (self.save,))
+            controller.delete_custom_shortcut("save")
+            self.assertEqual(store.load_custom_shortcuts(), ())
+            controller.add_custom_shortcut(self.save)
+            controller.review_text("save file", Mode.COMMANDS)
+            controller.reset_settings()
+            self.assertIsNone(controller.snapshot.pending)
+            self.assertEqual(controller.snapshot.custom_shortcuts, ())
+            self.assertEqual(store.load_configuration(), (Settings(), ()))
+
+    def test_catalogue_change_cancels_executing_action_without_mutating_plan_or_accepting_late_completion(
+        self,
+    ):
+        self.custom_api()
+        old = self.review("save file", Mode.COMMANDS)
+        self.controller.confirm(old.id)
+        self.controller.confirm_second(old.id)
+        self.scheduler.advance(3)
+        self.controller.update_custom_shortcut(replace(self.save, key_chord="Alt+F4"))
+        self.assertEqual(self.remote.actions[0].key_chord, "Ctrl+S")
+        newer = self.review("save file", Mode.COMMANDS)
+        self.remote.completions[0](RuntimeError("old input cancelled"))
+        self.assertEqual(self.controller.snapshot.pending, newer)
+        self.assertEqual(newer.key_chord, "Alt+F4")
+
+    def test_invalid_manager_items_raise_validation_errors_without_cancelling_review(
+        self,
+    ):
+        self.custom_api()
+        action = self.review()
+        for value in (None, 1, {}, "save"):
+            for method in (
+                self.controller.add_custom_shortcut,
+                self.controller.update_custom_shortcut,
+            ):
+                with self.subTest(value=value, method=method.__name__):
+                    try:
+                        method(value)
+                    except DomainError:
+                        pass
+                    except (AttributeError, TypeError) as error:
+                        self.fail(
+                            f"Malformed manager data needs DomainError, got {type(error).__name__}"
+                        )
+                    else:
+                        self.fail("Malformed manager item was accepted")
+                    self.assertEqual(self.controller.snapshot.pending, action)
+
     def test_update_settings_and_custom_mutations_reject_worker_before_store_changes(
         self,
     ):

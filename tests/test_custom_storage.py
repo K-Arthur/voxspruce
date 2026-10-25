@@ -112,6 +112,81 @@ class CustomStorageTests(unittest.TestCase):
         self.assertEqual(self.store.reset(), Settings())
         self.assertEqual(self.store.load_custom_shortcuts(), ())
 
+    def test_future_schema_blocks_all_custom_operations_without_mutating_bytes_or_mode(
+        self,
+    ):
+        import os
+        import stat
+
+        self.api()
+        self.store.add_custom_shortcut(self.save)
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("PRAGMA user_version=99")
+        os.chmod(self.path, 0o640)
+        original, mode = self.path.read_bytes(), stat.S_IMODE(self.path.stat().st_mode)
+        for operation in (
+            self.store.load_custom_shortcuts,
+            self.store.load_configuration,
+            lambda: self.store.add_custom_shortcut(self.save),
+            lambda: self.store.update_custom_shortcut(self.save),
+            lambda: self.store.delete_custom_shortcut("save"),
+            lambda: self.store.replace_custom_shortcuts(()),
+        ):
+            with self.assertRaises(SettingsError):
+                operation()
+            self.assertEqual(self.path.read_bytes(), original)
+            self.assertEqual(stat.S_IMODE(self.path.stat().st_mode), mode)
+
+    def test_sql_constraints_and_failed_write_preserve_all_old_custom_rows(self):
+        self.api()
+        self.store.add_custom_shortcut(self.save)
+        with closing(sqlite3.connect(self.path)) as db:
+            for field, value in (
+                ("enabled", 2),
+                ("enabled", "yes"),
+                ("description", "x" * 241),
+                ("phrase", ""),
+                ("id", "bad;id"),
+            ):
+                with (
+                    self.subTest(field=field),
+                    self.assertRaises(sqlite3.IntegrityError),
+                    db,
+                ):
+                    db.execute(f"UPDATE custom_voice_shortcuts SET {field}=?", (value,))
+            # A real failing SQL write after DELETE must roll back the whole replacement.
+            db.execute(
+                "CREATE TRIGGER reject_bad BEFORE INSERT ON custom_voice_shortcuts "
+                "WHEN NEW.id='blocked' BEGIN SELECT RAISE(ABORT, 'blocked'); END"
+            )
+            db.commit()
+        with self.assertRaises(SettingsError):
+            self.store.replace_custom_shortcuts((replace(self.save, id="blocked"),))
+        self.assertEqual(self.store.load_custom_shortcuts(), (self.save,))
+
+    def test_corrupt_legacy_preferences_are_not_migrated_or_chmodded(self):
+        import os
+        import stat
+
+        self.path.parent.mkdir(mode=0o700)
+        schema = (
+            Path(__file__).resolve().parents[1] / "src/wayland_voice_control/schema.sql"
+        ).read_text()
+        sql = schema[
+            schema.index("CREATE TABLE settings") : schema.index("INSERT INTO settings")
+        ]
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.executescript(sql)
+            db.execute("PRAGMA ignore_check_constraints=ON")
+            db.execute("INSERT INTO settings (id,theme) VALUES (1,'invalid')")
+            db.execute("PRAGMA user_version=1")
+        os.chmod(self.path, 0o640)
+        original = self.path.read_bytes()
+        with self.assertRaises(SettingsError):
+            self.store.load()
+        self.assertEqual(self.path.read_bytes(), original)
+        self.assertEqual(stat.S_IMODE(self.path.stat().st_mode), 0o640)
+
     def test_json_schema_describes_custom_configuration_only(self):
         path = (
             Path(__file__).resolve().parents[1]

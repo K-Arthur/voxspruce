@@ -6,7 +6,7 @@ The application runs recognition locally. Runtime code has no account, telemetry
 
 The microphone is off at launch. App-level microphone consent must be enabled, then a push-to-talk control held. PipeWire audio is streamed through a pipe to a local Vosk recognizer. The application does not write audio files. Transcript and pending-action text live in memory, are displayed for review, and are discarded on cancel, completion or quit. Python, Vosk and the operating system may retain freed memory or swap pages; this is not a secure-memory or forensic-erasure guarantee.
 
-Persistent SQLite storage contains only validated preferences such as model path, microphone consent, time limits and theme. No transcript, audio, clipboard content, command payload, permission token or activity history belongs in the database. The application creates private configuration storage and can reset preferences. The model files themselves remain on disk until the user removes them.
+Persistent SQLite storage contains only validated preferences such as model path, microphone consent, time limits and theme, plus intentionally configured custom shortcut IDs, phrases, single chords, descriptions and enable flags. No recognized transcript, audio, clipboard content, pending action, permission token or activity history belongs in the database. Custom phrases are entered configuration, never automatically saved speech. The application creates private configuration storage and can atomically reset preferences and remove every custom shortcut. The model files themselves remain on disk until the user removes them.
 
 ## Desktop input
 
@@ -18,7 +18,7 @@ Global shortcuts use the desktop portal and its consent UI. The app does not mon
 
 ## Confirmation and limits
 
-Dictation and command modes are separate. Every action is reviewed and confirmed; commands capable of submission or destruction require another confirmation. Dictation cannot contain injected Enter/Tab or other control characters. Unknown commands are rejected. Confirmations expire and are single-use, and editing invalidates previous approval.
+Dictation and command modes are separate. Every action is reviewed and confirmed; commands capable of submission or destruction and all custom shortcuts require another distinct confirmation. Dictation cannot contain injected Enter/Tab or other control characters. Unknown commands are rejected. Confirmations expire and are single-use, and starting an edit invalidates previous approval immediately, even while the editor is empty or invalid. Re-review explicitly creates new approval work. Custom shortcut changes cancel current capture, edits, approvals and countdowns.
 
 The portal cannot attest which application's field receives input. The user chooses the destination. App-specific keyboard behavior, clipboard contents, focus changes and partial failures remain relevant: this software does not claim that an approved action can never have unintended effects. A failed insertion must not be retried automatically.
 
