@@ -7,7 +7,7 @@ GTK and work without a display or the optional Vosk dependency.
 
 ```sh
 python3 -m venv --system-site-packages .venv
-.venv/bin/python -m pip install -e . build ruff 'setuptools>=77' wheel
+.venv/bin/python -m pip install -e . build ruff 'setuptools>=77' 'packaging>=24.2' wheel
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
 .venv/bin/ruff check src tests scripts
 .venv/bin/python -m compileall -q src tests scripts
