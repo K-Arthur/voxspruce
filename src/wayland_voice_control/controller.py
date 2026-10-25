@@ -305,13 +305,23 @@ class Controller:
 
     def edit(self, action_id, text):
         self._assert_thread()
-        self._generation += 1
-        self._cancel_timer()
+        prior_state, prior_pending = self._workflow.state, self._workflow.pending
         try:
             self._workflow.edit_pending(action_id, text)
         except DomainError as error:
+            # Stale identities and invalid-state events do not change Workflow:
+            # they must not orphan the current capture, countdown or execution.
+            # Invalid content/expiry does change it and revokes existing work.
+            if (
+                self._workflow.state is not prior_state
+                or self._workflow.pending is not prior_pending
+            ):
+                self._generation += 1
+                self._cancel_timer()
             self._publish(str(error))
             return False
+        self._generation += 1
+        self._cancel_timer()
         self._publish("Edited. Review and confirm the new action.")
         return True
 

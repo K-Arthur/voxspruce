@@ -291,3 +291,41 @@ class ControllerTests(unittest.TestCase):
         self.controller.start_recording()
         self.audio.callbacks["on_result"]("press enter")
         self.assertEqual(self.controller.snapshot.pending.payload, "press_enter")
+
+    def test_stale_edit_does_not_orphan_a_new_capture_completion(self):
+        stale_id = self.review("old review")
+        self.controller.cancel()
+        self.assertTrue(self.controller.start_recording(Mode.DICTATION))
+        self.assertFalse(self.controller.edit(stale_id, "late edit"))
+        self.audio.callbacks["on_result"]("current recording")
+        self.assertEqual(self.controller.snapshot.state, State.REVIEWING)
+        self.assertEqual(self.controller.snapshot.pending.payload, "current recording")
+
+    def test_edit_after_action_is_consumed_does_not_orphan_execution_completion(self):
+        action_id = self.review()
+        self.controller.confirm(action_id)
+        self.scheduler.advance(3)
+        self.assertFalse(self.controller.edit(action_id, "late edit"))
+        self.remote.completions[-1](None)
+        self.assertEqual(self.controller.snapshot.state, State.IDLE)
+
+    def test_stale_edit_preserves_current_armed_countdown(self):
+        stale_id = self.review("old review")
+        self.controller.cancel()
+        current_id = self.review("current review")
+        self.controller.confirm(current_id)
+        self.assertFalse(self.controller.edit(stale_id, "late edit"))
+        self.scheduler.advance(3)
+        self.assertEqual(self.controller.snapshot.state, State.EXECUTING)
+        self.assertEqual(self.remote.actions[-1].payload, "current review")
+
+    def test_invalid_content_edit_cancels_armed_dispatch_and_queued_tick(self):
+        action_id = self.review()
+        self.controller.confirm(action_id)
+        stale_tick = self.scheduler.jobs[-1][1]
+        self.assertFalse(self.controller.edit(action_id, ""))
+        stale_tick()
+        self.scheduler.advance(3)
+        self.assertEqual(self.controller.snapshot.state, State.ERROR)
+        self.assertEqual(self.controller.snapshot.countdown_seconds, 0)
+        self.assertFalse(self.remote.actions)
