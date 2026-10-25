@@ -85,3 +85,5 @@ fixture still yields 65 blocks and 63 partial calls; model load 0.786 s, decode
 1.480 s, realtime factor 0.178, p50/p95/max blocks 5.69/69.63/439.64 ms and finalization
 26.14 ms. Metric boundaries remain inside the child; timing variation does not
 establish a speedup from isolation. No microphone or host portal was accessed.
+
+Task 2b specification and quality reviews approved the realtime speech work and native-diagnostic correction (`ce91224`). The independent quality recheck passed all 138 tests, including actual Vosk subprocess stderr tests.

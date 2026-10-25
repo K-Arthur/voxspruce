@@ -33,11 +33,11 @@ Files: `src/wayland_voice_control/{portal,audio,controller,diagnostics,__main__}
 
 Added for the user's explicit realtime requirement on 25 October 2026.
 
-- [ ] Test first: streaming draft updates combine completed segments with current partial results, are bounded and coalesced, never become approved actions, and cannot survive cancel/replacement/finalization. Preserve fixed privacy-safe errors and held capture semantics.
-- [ ] Add an explicit model preparation operation that loads/caches locally without starting a recorder. Expose loading/ready/error and safe cancellation so first spoken syllables are not lost while a cold model loads. Continue to prohibit capture after release during loading.
-- [ ] Expose transient draft text and model readiness through coordinator snapshots for the native UI; clear drafts on release/final/error/cancel/stop and prevent stale prepare/partial callbacks from affecting newer work.
-- [ ] Provide a reproducible local-WAV benchmark using the application's streaming decoding path. Report cold load, audio duration, decode time, realtime factor, chunk latency percentiles, and finalization latency; print no transcript by default and never capture audio or download assets. Run on the public upstream fixture and document measured hardware/model-specific limits.
-- [ ] Run all tests, Ruff and private Gio protocol verification; commit progressively; specification review then quality review before native UI integration.
+- [x] Test first: streaming draft updates combine completed segments with current partial results, are bounded and coalesced, never become approved actions, and cannot survive cancel/replacement/finalization. Preserve fixed privacy-safe errors and held capture semantics.
+- [x] Add an explicit model preparation operation that loads/caches locally without starting a recorder. Expose loading/ready/error and safe cancellation so first spoken syllables are not lost while a cold model loads. Continue to prohibit capture after release during loading.
+- [x] Expose transient draft text and model readiness through coordinator snapshots for the native UI; clear drafts on release/final/error/cancel/stop and prevent stale prepare/partial callbacks from affecting newer work.
+- [x] Provide a reproducible local-WAV benchmark using the application's streaming decoding path. Report cold load, audio duration, decode time, realtime factor, chunk latency percentiles, and finalization latency; print no transcript by default and never capture audio or download assets. Run on the public upstream fixture and document measured hardware/model-specific limits.
+- [x] Run all tests, Ruff and private Gio protocol verification; commit progressively; specification review then quality review before native UI integration.
 
 ## Task 2c — custom voice shortcuts and safe editing
 
