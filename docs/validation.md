@@ -18,7 +18,7 @@ Recorded 25 October 2026. This document separates automated/software evidence fr
 
 - Vosk 0.3.45 successfully loads the official `vosk-model-small-en-us-0.15` model on this host.
 - One second of generated PCM silence produces an empty transcript.
-- Vosk's public [upstream test WAV](https://github.com/alphacep/vosk-api/blob/master/python/example/test.wav), processed locally, produces the expected opening and closing digit sequences. This checks the decoder and model, not microphone capture, word-error rate, accent coverage or application integration.
+- Vosk's public [upstream test WAV](https://github.com/alphacep/vosk-api/blob/master/python/example/test.wav), processed through the application's `StreamingDecoder`, starts with `one zero zero zero one` and ends with `zero one eight zero three`. This checks the decoder and model, not microphone capture, word-error rate, accent coverage or application integration.
 - The observed middle sequence included misrecognitions (for example, `nah no to i know`). This is a real limitation of the small model on that sample, not a claim of perfect transcription.
 - Downloaded model and public test fixture are development assets in ignored `models/`; no user microphone was recorded for these checks. Runtime code does not download models.
 
@@ -232,3 +232,16 @@ Fresh checks after that correction pass **203/203 tests**, including **23 GTK
 tests**, plus Ruff, compileall, private real-Gio protocol checks and wheel/sdist
 builds. This extends headless event-routing evidence; real GNOME input and
 microphone validation remain unperformed.
+
+## Sustained offline speech recheck
+
+Using the existing public Vosk upstream WAV fixture and the local
+`vosk-model-small-en-us-0.15`, the isolated benchmark decoded 58.156 seconds
+formed by repeating the 8.308-second WAV seven times. Unpaced decode took 4.004
+seconds (0.069 realtime factor); paced replay took 4.760 seconds total decode
+time (0.082 realtime factor) and measured 383 ms maximum accumulated replay
+lag. This used no microphone, network or transcript output. Repeated sentence
+boundaries make it a throughput stress check, not representative speech or
+accuracy evidence. See [performance.md](performance.md) for chunk timings and
+measurement limits. Physical microphone end-to-end latency and recognition
+accuracy remain unverified.

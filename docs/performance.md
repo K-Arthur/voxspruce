@@ -72,13 +72,21 @@ run-to-run conditions and is not evidence that isolation improves decoding.
 | Paced | 1.753 | 2.176 | 0.262 | 7.59 | 107.26 | 644.45 | 44.62 | 644.55 |
 | Unpaced, isolated CLI recheck | 0.786 | 1.480 | 0.178 | 5.69 | 69.63 | 439.64 | 26.14 | — |
 | Independent paced recheck | 1.519 | 1.881 | 0.226 | 7.12 | 127.08 | 407.04 | 39.00 | 407.12 |
+| Sustained replay, unpaced (58.156 s) | 1.052 | 4.004 | 0.069 | 6.58 | 27.66 | 386.50 | 25.10 | — |
+| Sustained replay, paced (58.156 s) | 0.650 | 4.760 | 0.082 | 7.79 | 29.09 | 383.17 | 27.68 | 383.27 |
 
-Average decode throughput meets the host target, while individual bursts can
-still delay drafts for roughly 0.6–1.2 seconds on these runs. Paced replay observed
-about 645 ms maximum accumulated lag; an independent repeat observed 407 ms. Measurements vary with load, scheduling and
-power state. These are local decoder throughput/replay measurements; they do not
-establish end-to-end physical microphone latency, compositor input latency,
-speech accuracy, or realtime performance on other hardware/models/languages.
+Average decode throughput meets the host target. On the initial short-fixture
+runs, the largest individual decoder chunks took 0.82–1.24 seconds. Paced replay
+observed about 645 ms maximum accumulated lag; an independent repeat observed
+407 ms. The later sustained replay observed 383 ms maximum lag. Measurements vary
+with load, scheduling and power state. These are local decoder throughput/replay
+measurements; they do not establish end-to-end physical microphone latency,
+compositor input latency, speech accuracy, or realtime performance on other
+hardware/models/languages.
+The sustained rows use the same 8.308-second public upstream fixture repeated
+seven times to exercise nearly the benchmark's 60-second limit. The repeated
+sentence boundaries are artificial; these figures verify sustained decoder
+throughput only and are not a speech-accuracy test.
 
 ## Responsive UI and startup
 
