@@ -8,8 +8,10 @@ not request permission, capture audio, bind shortcuts, or send input.
 
 Every public coordinator call and observer callback belongs on that same UI
 thread. Workers send completions through the dispatcher. Each asynchronous
-operation has a generation; both success and failure are ignored after cancel,
-stop, edit, or replacement. This gate must precede untagged
+action has a generation; both success and failure are ignored after cancel,
+stop, valid edit, or replacement. Permission requests have separate attempt
+identities: cancel closes unfinished requests, while unrelated action changes
+do not hide a completed binding. This gate must precede untagged
 `Workflow.complete_execution()` and `Workflow.fail()` calls.
 
 `subscribe(callback)` immediately supplies an immutable `Snapshot`, then supplies

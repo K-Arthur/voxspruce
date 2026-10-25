@@ -329,3 +329,142 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(self.controller.snapshot.state, State.ERROR)
         self.assertEqual(self.controller.snapshot.countdown_seconds, 0)
         self.assertFalse(self.remote.actions)
+
+
+class ControllerPortalLifecycleTests(unittest.TestCase):
+    def make_controller(self, dispatch=lambda callback: callback()):
+        from tests.test_portal import FakeTransport
+        from wayland_voice_control.portal import GlobalShortcuts, RemoteDesktop
+
+        self.wire = FakeTransport()
+        self.remote = RemoteDesktop(self.wire, dispatch=dispatch)
+        self.shortcuts = GlobalShortcuts(self.wire, lambda *_: None)
+        self.audio = Audio()
+        self.scheduler = Scheduler()
+        self.controller = Controller(
+            settings=replace(Settings(), microphone_consent=True, model_path="/model"),
+            remote=self.remote,
+            audio=self.audio,
+            shortcuts=self.shortcuts,
+            schedule=self.scheduler.schedule,
+            dispatch=dispatch,
+            clock=lambda: self.scheduler.now,
+        )
+
+    def grant_keyboard(self):
+        self.controller.connect()
+        self.wire.reply({"session_handle": "/keyboard"})
+        self.wire.reply()
+        self.wire.reply({"devices": 1})
+
+    def test_cancel_or_mode_change_closes_inflight_keyboard_session_at_each_stage(self):
+        for stage in ("create", "select", "start"):
+            for operation in ("cancel", "mode"):
+                with self.subTest(stage=stage, operation=operation):
+                    self.make_controller()
+                    self.controller.connect()
+                    if stage in ("select", "start"):
+                        self.wire.reply({"session_handle": "/keyboard"})
+                    if stage == "start":
+                        self.wire.reply()
+                    pending = self.wire.requests[-1]
+                    if operation == "cancel":
+                        self.controller.cancel()
+                    else:
+                        self.controller.set_mode(Mode.COMMANDS)
+                    self.assertTrue(pending[6])
+                    pending[5](
+                        0,
+                        {"session_handle": "/keyboard"}
+                        if stage == "create"
+                        else {"devices": 1},
+                        None,
+                    )
+                    self.assertFalse(self.remote.granted)
+                    self.assertFalse(self.controller.snapshot.permission_granted)
+                    self.assertIn("/keyboard", self.wire.closed)
+                    self.assertFalse(self.wire.signals)
+
+    def test_cancel_closes_grant_whose_controller_callback_is_still_queued(self):
+        queued = []
+        self.make_controller(dispatch=queued.append)
+        self.grant_keyboard()
+        self.assertTrue(self.remote.granted)
+        self.controller.cancel()
+        while queued:
+            queued.pop(0)()
+        self.assertFalse(self.remote.granted)
+        self.assertFalse(self.controller.snapshot.permission_granted)
+        self.assertIn("/keyboard", self.wire.closed)
+
+    def test_cancel_closes_inflight_shortcut_binding_and_late_session(self):
+        for stage in ("create", "bind"):
+            with self.subTest(stage=stage):
+                self.make_controller()
+                self.controller.connect_shortcuts()
+                if stage == "bind":
+                    self.wire.reply({"session_handle": "/shortcuts"})
+                pending = self.wire.requests[-1]
+                self.controller.cancel()
+                self.assertTrue(pending[6])
+                pending[5](
+                    0,
+                    {"session_handle": "/shortcuts"}
+                    if stage == "create"
+                    else {
+                        "shortcuts": [("confirm", {"trigger_description": "Assigned"})]
+                    },
+                    None,
+                )
+                self.assertEqual(self.shortcuts.bindings, {})
+                self.assertIn("/shortcuts", self.wire.closed)
+                self.assertFalse(self.wire.signals)
+
+    def test_shortcut_grant_is_reflected_when_recording_changes_action_generation(self):
+        self.make_controller()
+        self.grant_keyboard()
+        snapshots = []
+        self.controller.subscribe(snapshots.append)
+        self.controller.connect_shortcuts()
+        self.controller.start_recording()
+        self.wire.reply({"session_handle": "/shortcuts"})
+        self.wire.reply(
+            {"shortcuts": [("confirm", {"trigger_description": "Assigned"})]}
+        )
+        self.assertEqual(snapshots[-1].shortcut_bindings, {"confirm": "Assigned"})
+        self.assertEqual(snapshots[-1].state, State.RECORDING)
+
+    def test_ordinary_cancel_keeps_completed_keyboard_and_shortcut_grants(self):
+        self.make_controller()
+        self.grant_keyboard()
+        self.controller.connect_shortcuts()
+        self.wire.reply({"session_handle": "/shortcuts"})
+        self.wire.reply(
+            {"shortcuts": [("confirm", {"trigger_description": "Assigned"})]}
+        )
+        self.controller.cancel()
+        self.assertTrue(self.remote.granted)
+        self.assertTrue(self.controller.snapshot.permission_granted)
+        self.assertEqual(
+            self.controller.snapshot.shortcut_bindings, {"confirm": "Assigned"}
+        )
+        self.assertEqual(self.wire.closed, [])
+
+    def test_cancel_closes_shortcut_grant_queued_for_controller_delivery(self):
+        queued = []
+        self.make_controller(dispatch=queued.append)
+        self.grant_keyboard()
+        while queued:
+            queued.pop(0)()
+        self.controller.connect_shortcuts()
+        self.wire.reply({"session_handle": "/shortcuts"})
+        self.wire.reply(
+            {"shortcuts": [("confirm", {"trigger_description": "Assigned"})]}
+        )
+        self.controller.cancel()
+        while queued:
+            queued.pop(0)()
+        self.assertEqual(self.shortcuts.bindings, {})
+        self.assertIn("/shortcuts", self.wire.closed)
+        self.assertTrue(self.remote.granted)
+        self.assertTrue(self.controller.snapshot.permission_granted)

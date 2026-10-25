@@ -2,7 +2,7 @@
 
 Call public methods on the creating/UI thread. Worker completions are dispatched
 there before touching Workflow. Every asynchronous success AND failure checks its
-operation generation: Workflow.fail/complete_execution do not carry identities.
+operation identity: Workflow.fail/complete_execution do not carry identities.
 Observers receive immutable snapshots. No method sends unreviewed live text.
 """
 
@@ -74,6 +74,8 @@ class Controller:
         self._thread = threading.get_ident()
         self._observers = []
         self._generation = 0
+        self._connection_attempt = None
+        self._shortcut_attempt = None
         self._timer = None
         self._deadline = None
         self._recording_id = None
@@ -158,11 +160,15 @@ class Controller:
         self._assert_thread()
         self.cancel()
         self._workflow.set_permission(False)
-        generation = self._generation
+        attempt = self._connection_attempt = object()
         self._publish("Waiting for desktop keyboard permission…")
 
         def complete(granted, error):
             def apply():
+                self._assert_thread()
+                if self._connection_attempt is not attempt:
+                    return
+                self._connection_attempt = None
                 self._workflow.set_permission(bool(granted))
                 self._publish(
                     "Keyboard permission granted."
@@ -170,25 +176,31 @@ class Controller:
                     else f"Keyboard access unavailable: {error}"
                 )
 
-            self._later(generation, apply)
+            self.dispatch(apply)
 
-        self.remote.connect(complete, parent_window)
+        if self._connection_attempt is attempt:
+            self.remote.connect(complete, parent_window)
 
     def connect_shortcuts(self, parent_window=""):
         self._assert_thread()
         if self.shortcuts:
-            generation = self._generation
-            self.shortcuts.connect(
-                lambda granted, error: self._later(
-                    generation,
-                    lambda: self._publish(
+            attempt = self._shortcut_attempt = object()
+
+            def complete(granted, error):
+                def apply():
+                    self._assert_thread()
+                    if self._shortcut_attempt is not attempt:
+                        return
+                    self._shortcut_attempt = None
+                    self._publish(
                         "Global shortcuts ready."
                         if granted
                         else f"Global shortcuts unavailable; use local controls. {error}"
-                    ),
-                ),
-                parent_window,
-            )
+                    )
+
+                self.dispatch(apply)
+
+            self.shortcuts.connect(complete, parent_window)
 
     def set_mode(self, mode):
         self._assert_thread()
@@ -418,6 +430,16 @@ class Controller:
         self._assert_thread()
         self._generation += 1
         self._cancel_timer()
+        # Permission attempts have identities separate from action generations.
+        # Cancel must close pending grants, including responses queued for UI
+        # delivery; completed permissions may remain until explicit stop/revoke.
+        if self._connection_attempt is not None:
+            self._connection_attempt = None
+            self.remote.close()
+            self._workflow.set_permission(False)
+        if self._shortcut_attempt is not None:
+            self._shortcut_attempt = None
+            self.shortcuts.close()
         if not self.practice:
             self.audio.cancel()
         self.remote.cancel_input()
