@@ -63,10 +63,11 @@ host, not a statistically representative hardware sample.
 | Unpaced 1 | 1.981 | 3.336 | 0.402 | 13.64 | 132.30 | 1244.70 | 59.58 | — |
 | Unpaced 2 | 1.588 | 3.450 | 0.415 | 10.18 | 193.76 | 817.81 | 64.92 | — |
 | Paced | 1.753 | 2.176 | 0.262 | 7.59 | 107.26 | 644.45 | 44.62 | 644.55 |
+| Independent paced recheck | 1.519 | 1.881 | 0.226 | 7.12 | 127.08 | 407.04 | 39.00 | 407.12 |
 
 Average decode throughput meets the host target, while individual bursts can
 still delay drafts for roughly 0.6–1.2 seconds on these runs. Paced replay observed
-about 645 ms maximum accumulated lag. Measurements vary with load, scheduling and
+about 645 ms maximum accumulated lag; an independent repeat observed 407 ms. Measurements vary with load, scheduling and
 power state. These are local decoder throughput/replay measurements; they do not
 establish end-to-end physical microphone latency, compositor input latency,
 speech accuracy, or realtime performance on other hardware/models/languages.

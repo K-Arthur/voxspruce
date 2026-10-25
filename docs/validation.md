@@ -63,3 +63,5 @@ Benchmark tests verify real shared decoder block boundaries, nearest-rank
 percentiles, measured finalization/compute time, paced scheduling lag, WAV format
 and duration rejection, truncated PCM and sanitized failures. No physical
 microphone or host portal was exercised.
+
+Independent paced benchmark recheck using the committed shared decoder: 8.308 seconds of audio, 1.881 seconds decoding (RTF 0.226), 407 ms maximum replay lag and 39 ms finalization. This confirms the benchmark is reproducible on this host, not a microphone-latency or recognition-accuracy claim. See [performance.md](performance.md) for all recorded runs, including slower bursts.
