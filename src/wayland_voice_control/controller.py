@@ -21,6 +21,8 @@ class Snapshot:
     status: str
     error: str | None
     microphone_activity: str
+    draft_text: str
+    model_readiness: str
     countdown_seconds: float
     permission_granted: bool
     microphone_consent: bool
@@ -80,6 +82,8 @@ class Controller:
         self._deadline = None
         self._recording_id = None
         self._activity = "idle"
+        self._draft = ""
+        self._model_readiness = "idle"
         self._status = (
             "Practice: input will be simulated."
             if practice
@@ -120,6 +124,8 @@ class Controller:
             self._status,
             self._workflow.error,
             self._activity,
+            self._draft,
+            self._model_readiness,
             remaining,
             self._workflow.permission_granted,
             self.settings.microphone_consent,
@@ -220,6 +226,47 @@ class Controller:
         elif not active and name == "confirm" and self._workflow.pending:
             self.confirm(self._workflow.pending.id, source="global")
 
+    def prepare_model(self):
+        """Explicit setup action: local model work only, no OS permissions."""
+        self._assert_thread()
+        if self.practice:
+            self._publish(
+                "Practice uses typed examples only; model loading is disabled."
+            )
+            return False
+        self.cancel()
+        generation = self._generation
+        self._model_readiness = "loading"
+        self._publish("Preparing local speech model…")
+
+        def state(value):
+            def apply():
+                self._model_readiness = value
+                self._publish(
+                    {
+                        "loading": "Preparing local speech model…",
+                        "ready": "Local speech model ready.",
+                        "error": "Local speech model preparation failed.",
+                    }[value]
+                )
+
+            self._later(generation, apply)
+
+        def failed(error):
+            self._later(generation, lambda: self._fail(str(error)))
+
+        try:
+            if self.audio.prepare(
+                self.settings.model_path, on_state=state, on_error=failed
+            ):
+                return True
+            self._model_readiness = "idle"
+            self._publish("Previous speech work is still stopping. Try again shortly.")
+        except Exception as error:  # noqa: BLE001 - adapter errors must cancel safely
+            self._model_readiness = "error"
+            self._fail(str(error))
+        return False
+
     def start_recording(self, mode=None):
         self._assert_thread()
         if self.practice:
@@ -237,11 +284,17 @@ class Controller:
         self._generation += 1
         generation = self._generation
         self._recording_id = recording_id
+        self._draft = ""
+        self._model_readiness = "loading"
         self._publish("Loading local speech model…")
 
         def activity(value):
             def apply():
                 self._activity = value
+                if value == "recording":
+                    self._model_readiness = "ready"
+                if value in ("processing", "idle"):
+                    self._draft = ""
                 self._publish(
                     {
                         "loading": "Loading local speech model…",
@@ -253,8 +306,17 @@ class Controller:
 
             self._later(generation, apply)
 
+        def draft(text):
+            def apply():
+                if self._workflow.state is State.RECORDING:
+                    self._draft = text
+                    self._publish()
+
+            self._later(generation, apply)
+
         def result(text):
             def apply():
+                self._draft = ""
                 if self._workflow.state is State.RECORDING:
                     self._workflow.finish_recording(recording_id)
                 try:
@@ -278,6 +340,7 @@ class Controller:
                 on_activity=activity,
                 on_result=result,
                 on_error=failed,
+                on_draft=draft,
             )
             if not started:
                 self._workflow.cancel()
@@ -295,6 +358,7 @@ class Controller:
         self._assert_thread()
         if self._workflow.state is State.RECORDING and self._recording_id:
             self._workflow.finish_recording(self._recording_id)
+            self._draft = ""
             self.audio.stop()
             self._publish("Processing locally…")
 
@@ -421,6 +485,7 @@ class Controller:
         self._timer = self._deadline = None
 
     def _fail(self, message):
+        self._draft = ""
         self._workflow.fail(message)
         self._activity = "idle"
         self._recording_id = None
@@ -446,6 +511,8 @@ class Controller:
         self._workflow.cancel()
         self._recording_id = None
         self._activity = "idle"
+        self._draft = ""
+        self._model_readiness = "idle"
         self._publish("Cancelled. Pending content discarded.")
 
     def stop(self):

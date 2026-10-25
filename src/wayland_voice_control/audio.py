@@ -5,14 +5,15 @@ hold and finalizes current audio; cancel() invalidates every queued callback.
 A watchdog terminates capture even if an OS read stalls. No shell/audio files.
 """
 
-import json
 import math
 import select
 import subprocess
 import threading
+import time
 from pathlib import Path
 
 from .portal import background
+from .speech import DecoderError, StreamingDecoder
 
 
 class AudioError(RuntimeError):
@@ -78,6 +79,7 @@ class AudioCapture:
         spawn=spawn_recorder,
         read_chunk=read_chunk,
         timer_factory=threading.Timer,
+        clock=time.monotonic,
     ):
         self.dispatch = dispatch
         self.run_worker = run_worker
@@ -86,6 +88,8 @@ class AudioCapture:
         self.spawn = spawn
         self.read_chunk = read_chunk
         self.timer_factory = timer_factory
+        self.clock = clock
+        self._pending_draft = ""
         self._lock = threading.RLock()
         self._generation = 0
         self._active = False
@@ -94,15 +98,71 @@ class AudioCapture:
         self._model = None
         self._model_path = None
 
-    def start(self, model_path, *, consent, limit, on_activity, on_result, on_error):
-        if consent is not True:
-            raise AudioError("Enable microphone consent before recording.")
+    @staticmethod
+    def _local_path(model_path):
         if (
             not model_path
             or "://" in str(model_path)
             or not Path(model_path).expanduser().is_dir()
         ):
             raise AudioError("Choose an existing local Vosk model directory.")
+        return Path(model_path).expanduser().resolve()
+
+    def _emit(self, generation, callback, value):
+        def deliver():
+            if generation == self._generation:
+                callback(value)
+
+        self.dispatch(deliver)
+
+    def _load(self, path):
+        # Only the single excluded worker accesses the model cache.
+        if self._model is None or self._model_path != path:
+            self._model, self._model_path = self.load_model(path), path
+
+    def prepare(self, model_path, *, on_state, on_error):
+        """Load/cache a local model off-thread, without any microphone permission."""
+        path = self._local_path(model_path)
+        with self._lock:
+            if self._active:
+                return False
+            self._active = True
+            self._generation += 1
+            generation = self._generation
+        self._emit(generation, on_state, "loading")
+
+        def worker():
+            error = None
+            try:
+                self._load(path)
+            except Exception:  # noqa: BLE001 - dependency messages may contain private data
+                error = AudioError(
+                    "Local model preparation failed. Check the model directory."
+                )
+            finally:
+                with self._lock:
+                    self._active = False
+            self._emit(generation, on_state, "error" if error else "ready")
+            if error:
+                self._emit(generation, on_error, error)
+
+        self.run_worker(worker)
+        return True
+
+    def start(
+        self,
+        model_path,
+        *,
+        consent,
+        limit,
+        on_activity,
+        on_result,
+        on_error,
+        on_draft=None,
+    ):
+        if consent is not True:
+            raise AudioError("Enable microphone consent before recording.")
+        path = self._local_path(model_path)
         if (
             isinstance(limit, bool)
             or not isinstance(limit, (int, float))
@@ -110,7 +170,6 @@ class AudioCapture:
             or not 5 <= limit <= 60
         ):
             raise AudioError("Capture duration must be between 5 and 60 seconds.")
-        path = Path(model_path).expanduser().resolve()
         with self._lock:
             if self._active:
                 return False
@@ -120,9 +179,33 @@ class AudioCapture:
             stop = self._stop = threading.Event()
 
         def emit(callback, value):
+            self._emit(generation, callback, value)
+
+        draft_queued = False
+        last_draft = float("-inf")
+
+        def draft(text):
+            nonlocal draft_queued, last_draft
+            if on_draft is None:
+                return
+            with self._lock:
+                if generation != self._generation or stop.is_set():
+                    return
+                self._pending_draft = text
+                if draft_queued or self.clock() - last_draft < 0.2:
+                    return
+                draft_queued = True
+                last_draft = self.clock()
+
             def deliver():
-                if generation == self._generation:
-                    callback(value)
+                nonlocal draft_queued
+                with self._lock:
+                    draft_queued = False
+                    if generation != self._generation or stop.is_set():
+                        return
+                    text = self._pending_draft
+                    self._pending_draft = ""
+                on_draft(text)
 
             self.dispatch(deliver)
 
@@ -130,29 +213,12 @@ class AudioCapture:
 
         def worker():
             process = timer = recognizer = None
-            segments = []
-            total_characters = 0
+            decoder = None
+            text = ""
             error = None
             released_before_capture = False
-
-            def collect(raw):
-                nonlocal total_characters
-                text = json.loads(raw).get("text", "")
-                if not isinstance(text, str):
-                    raise _CaptureFault("The recognizer returned invalid text.")
-                total_characters += len(text) + 1
-                if total_characters > 4001:
-                    raise _CaptureFault(
-                        "Recognized text exceeded the 4000 character limit."
-                    )
-                if text.strip():
-                    segments.append(text.strip())
-
             try:
-                if self._model is None or self._model_path != path:
-                    model = self.load_model(path)
-                    with self._lock:
-                        self._model, self._model_path = model, path
+                self._load(path)
                 # The same lock protects release and spawn: releasing during load
                 # must never cause a later microphone process to be opened.
                 with self._lock:
@@ -160,6 +226,7 @@ class AudioCapture:
                         released_before_capture = True
                     else:
                         recognizer = self.make_recognizer(self._model)
+                        decoder = StreamingDecoder(recognizer)
                         process = self._process = self.spawn()
                 if not released_before_capture:
                     emit(on_activity, "recording")
@@ -180,8 +247,7 @@ class AudioCapture:
                             raise _CaptureFault(
                                 "The microphone returned an oversized audio block."
                             )
-                        if recognizer.AcceptWaveform(chunk):
-                            collect(recognizer.Result())
+                        draft(decoder.accept(chunk))
                     # After normal release the terminated recorder may still have
                     # PCM queued in its pipe. Drain at most 64 KiB without waiting;
                     # cancellation discards content rather than prolonging capture.
@@ -195,11 +261,10 @@ class AudioCapture:
                             raise _CaptureFault(
                                 "The microphone returned an oversized audio block."
                             )
-                        if recognizer.AcceptWaveform(chunk):
-                            collect(recognizer.Result())
+                        draft(decoder.accept(chunk))
                     emit(on_activity, "processing")
-                    collect(recognizer.FinalResult())
-            except _CaptureFault as caught:
+                    text = decoder.finish()
+            except (_CaptureFault, DecoderError) as caught:
                 error = AudioError(str(caught))
             except Exception:  # noqa: BLE001 - dependency messages may contain private speech
                 error = AudioError(
@@ -226,13 +291,15 @@ class AudioCapture:
                 with self._lock:
                     self._active = False
                     self._process = None
+                    self._pending_draft = ""
+                if decoder:
+                    decoder.clear()
                 recognizer = None
                 emit(on_activity, "idle")
                 if error:
                     emit(on_error, error)
                 else:
-                    emit(on_result, " ".join(segments))
-                segments.clear()
+                    emit(on_result, text)
 
         self.run_worker(worker)
         return True
@@ -242,6 +309,7 @@ class AudioCapture:
             if generation != self._generation:
                 return
             self._stop.set()
+            self._pending_draft = ""
             if self._process:
                 try:
                     self._process.terminate()

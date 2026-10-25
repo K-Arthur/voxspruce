@@ -330,6 +330,81 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(self.controller.snapshot.countdown_seconds, 0)
         self.assertFalse(self.remote.actions)
 
+    def test_drafts_are_transient_and_cannot_create_or_arm_actions(self):
+        self.assertTrue(self.controller.start_recording())
+        self.assertIn("on_draft", self.audio.callbacks)
+        callbacks = self.audio.callbacks
+        callbacks["on_draft"]("provisional speech")
+        self.assertEqual(self.controller.snapshot.draft_text, "provisional speech")
+        self.assertIsNone(self.controller.snapshot.pending)
+        self.assertEqual(self.controller.snapshot.state, State.RECORDING)
+        self.controller.finish_recording()
+        self.assertEqual(self.controller.snapshot.draft_text, "")
+        callbacks["on_draft"]("late provisional")
+        self.assertEqual(self.controller.snapshot.draft_text, "")
+        callbacks["on_result"]("final speech")
+        callbacks["on_draft"]("even later")
+        self.assertEqual(self.controller.snapshot.pending.payload, "final speech")
+        self.assertEqual(self.controller.snapshot.draft_text, "")
+        self.assertEqual(self.remote.actions, [])
+
+    def test_model_preparation_needs_no_permission_and_stale_completions_are_ignored(
+        self,
+    ):
+        self.assertTrue(hasattr(self.controller, "prepare_model"))
+        preparations = []
+        self.audio.prepare = lambda path, **kwargs: preparations.append(kwargs) or True
+        self.controller.stop()
+        self.controller.apply_settings(replace(self.settings, microphone_consent=False))
+        self.assertTrue(self.controller.prepare_model())
+        first = preparations[-1]
+        first["on_state"]("loading")
+        self.assertEqual(self.controller.snapshot.model_readiness, "loading")
+        self.assertEqual(self.controller.snapshot.microphone_activity, "idle")
+        self.controller.cancel()
+        self.assertTrue(self.controller.prepare_model())
+        first["on_state"]("ready")
+        first["on_error"](RuntimeError("stale"))
+        self.assertEqual(self.controller.snapshot.model_readiness, "loading")
+        preparations[-1]["on_state"]("ready")
+        self.assertEqual(self.controller.snapshot.model_readiness, "ready")
+        self.assertIsNone(self.controller.snapshot.error)
+        self.controller.apply_settings(replace(self.settings, model_path="/different"))
+        self.assertEqual(self.controller.snapshot.model_readiness, "idle")
+
+    def test_practice_rejects_model_preparation(self):
+        self.assertTrue(hasattr(self.controller, "prepare_model"))
+        calls = []
+        self.audio.prepare = lambda *args, **kwargs: calls.append("model") or True
+        practice = Controller(
+            settings=self.settings,
+            remote=PracticeInput(),
+            audio=self.audio,
+            schedule=self.scheduler.schedule,
+            dispatch=lambda f: f(),
+            practice=True,
+        )
+        self.assertFalse(practice.prepare_model())
+        self.assertEqual(calls, [])
+
+    def test_queued_draft_prepare_and_errors_cannot_affect_replacement(self):
+        self.assertTrue(hasattr(self.controller, "prepare_model"))
+        queued, preparations = [], []
+        self.controller.dispatch = queued.append
+        self.audio.prepare = lambda path, **kwargs: preparations.append(kwargs) or True
+        self.controller.prepare_model()
+        preparations[-1]["on_state"]("ready")
+        preparations[-1]["on_error"](RuntimeError("late"))
+        self.controller.cancel()
+        self.controller.start_recording()
+        self.audio.callbacks["on_draft"]("private stale")
+        self.controller.cancel()
+        while queued:
+            queued.pop(0)()
+        self.assertEqual(self.controller.snapshot.draft_text, "")
+        self.assertEqual(self.controller.snapshot.model_readiness, "idle")
+        self.assertIsNone(self.controller.snapshot.error)
+
 
 class ControllerPortalLifecycleTests(unittest.TestCase):
     def make_controller(self, dispatch=lambda callback: callback()):

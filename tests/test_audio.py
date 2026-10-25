@@ -34,6 +34,9 @@ class Recognizer:
     def Result(self):
         return '{"text": "hello"}'
 
+    def PartialResult(self):
+        return '{"partial": ""}'
+
     def FinalResult(self):
         return '{"text": "world"}'
 
@@ -369,3 +372,170 @@ class AudioTests(unittest.TestCase):
         self.assertEqual(len(self.errors), 1)
         self.assertNotIn(sentinel, str(self.errors[0]))
         self.assertIn("Microphone cleanup failed", str(self.errors[0]))
+
+    def test_drafts_are_coalesced_throttled_and_cleared_at_finish(self):
+        self.assertIn(
+            "on_draft", __import__("inspect").signature(self.capture.start).parameters
+        )
+        now = [0.0]
+        drafts = []
+        self.capture.clock = lambda: now[0]
+        self.recognizer.AcceptWaveform = lambda chunk: False
+        self.recognizer.PartialResult = lambda: '{"partial":"draft"}'
+
+        def read(*_):
+            self.reads += 1
+            now[0] += 0.05
+            if self.reads == 1:
+                self.flush()
+            if self.reads == 2:
+                self.flush()
+                self.assertEqual(drafts, ["draft"])
+            if self.reads == 6:
+                self.assertLessEqual(len(self.callbacks), 1)
+                self.flush()
+                self.assertEqual(drafts, ["draft", "draft"])
+            if self.reads == 100:
+                self.assertLessEqual(len(self.callbacks), 1)
+                self.capture.stop()
+                return b""
+            return b"\0\0"
+
+        self.capture.read_chunk = read
+        self.start(on_draft=drafts.append)
+        self.jobs.pop()()
+        self.flush()
+        self.assertEqual(drafts, ["draft", "draft"])
+        self.assertEqual(self.results, ["world"])
+        self.assertEqual(self.capture._pending_draft, "")
+
+    def test_cancel_clears_queued_draft_and_dependency_errors_stay_private(self):
+        self.assertIn(
+            "on_draft", __import__("inspect").signature(self.capture.start).parameters
+        )
+        drafts = []
+        self.recognizer.AcceptWaveform = lambda chunk: False
+        self.recognizer.PartialResult = lambda: '{"partial":22}'
+        self.start(on_draft=drafts.append)
+        self.jobs.pop()()
+        self.flush()
+        self.assertEqual(drafts, [])
+        self.assertIn("invalid text", str(self.errors[-1]))
+        self.errors.clear()
+        self.recognizer.PartialResult = lambda: '{"partial":"private draft"}'
+        self.reads = 0
+        self.start(on_draft=drafts.append)
+        self.jobs.pop()()
+        self.capture.cancel()
+        self.flush()
+        self.assertEqual(drafts, [])
+        self.assertEqual(self.capture._pending_draft, "")
+
+    def test_prepare_uses_worker_caches_model_and_never_opens_microphone(self):
+        self.assertTrue(hasattr(self.capture, "prepare"))
+        states, models = [], []
+        self.capture.load_model = lambda path: models.append(path) or object()
+        self.assertTrue(
+            self.capture.prepare(
+                self.directory.name, on_state=states.append, on_error=self.errors.append
+            )
+        )
+        self.assertEqual(models, [])
+        self.assertFalse(self.start())
+        self.flush()
+        self.assertEqual(states, ["loading"])
+        self.jobs.pop()()
+        self.flush()
+        self.assertEqual(states, ["loading", "ready"])
+        self.assertEqual(self.spawned, [])
+        self.start()
+        self.jobs.pop()()
+        self.flush()
+        self.assertEqual(len(models), 1)
+
+    def test_prepare_cancellation_suppresses_queued_and_load_racing_readiness(self):
+        self.assertTrue(hasattr(self.capture, "prepare"))
+        for cancel_during_load in (False, True):
+            states = []
+
+            def load(_, cancel_during_load=cancel_during_load):
+                if cancel_during_load:
+                    self.capture.cancel()
+                return object()
+
+            self.capture._model = None
+            self.capture.load_model = load
+            self.capture.prepare(
+                self.directory.name, on_state=states.append, on_error=self.errors.append
+            )
+            self.jobs.pop()()
+            self.capture.cancel()
+            self.flush()
+            self.assertEqual(states, [])
+            self.assertEqual(self.spawned, [])
+
+    def test_prepare_failure_is_sanitized_and_does_not_poison_new_request(self):
+        self.assertTrue(hasattr(self.capture, "prepare"))
+        states = []
+
+        def load(_):
+            raise RuntimeError("private dependency contents")
+
+        self.capture.load_model = load
+        self.capture.prepare(
+            self.directory.name, on_state=states.append, on_error=self.errors.append
+        )
+        self.jobs.pop()()
+        self.flush()
+        self.assertEqual(states, ["loading", "error"])
+        self.assertNotIn("private", str(self.errors[0]))
+        self.capture.load_model = lambda _: object()
+        self.assertTrue(
+            self.capture.prepare(
+                self.directory.name, on_state=states.append, on_error=self.errors.append
+            )
+        )
+
+    def test_prepare_cancel_during_real_worker_load_keeps_exclusion_until_completion(
+        self,
+    ):
+        self.assertTrue(hasattr(self.capture, "prepare"))
+        import threading
+
+        from wayland_voice_control.portal import background
+
+        entered, released, finished = (
+            threading.Event(),
+            threading.Event(),
+            threading.Event(),
+        )
+        states = []
+
+        def load(_):
+            entered.set()
+            if not released.wait(1):
+                raise RuntimeError("test load blocked")
+            return object()
+
+        def worker(job):
+            def run():
+                try:
+                    job()
+                finally:
+                    finished.set()
+
+            background(run)
+
+        self.capture.load_model = load
+        self.capture.run_worker = worker
+        self.capture.prepare(
+            self.directory.name, on_state=states.append, on_error=self.errors.append
+        )
+        self.assertTrue(entered.wait(1))
+        self.capture.cancel()
+        self.assertFalse(self.start())
+        released.set()
+        self.assertTrue(finished.wait(1))
+        self.flush()
+        self.assertEqual(states, [])
+        self.assertEqual(self.spawned, [])

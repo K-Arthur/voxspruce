@@ -10,6 +10,7 @@ class DecoderError(RuntimeError):
 class StreamingDecoder:
     def __init__(self, recognizer):
         self.recognizer = recognizer
+        self.partial_count = 0
         self._finalized = ""
         self.draft = ""
 
@@ -42,6 +43,7 @@ class StreamingDecoder:
             )
             self.draft = self._finalized
         else:
+            self.partial_count += 1
             self.draft = self._join(
                 self._finalized, self._text(self.recognizer.PartialResult(), "partial")
             )
