@@ -10,7 +10,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gdk, Gtk
+from gi.repository import Adw, Gdk, Gtk, Pango
 
 from .commands import CustomShortcut, command_catalogue
 from .domain import DomainError, Mode, State
@@ -19,14 +19,29 @@ from .ui_model import action_details, can_capture, create_controller
 
 
 def label(text="", *, title=False):
-    widget = Gtk.Label(label=text, xalign=0, wrap=True, selectable=True)
+    widget = Gtk.Label(
+        label=text,
+        xalign=0,
+        wrap=True,
+        selectable=True,
+        wrap_mode=Pango.WrapMode.WORD_CHAR,
+    )
     if title:
         widget.add_css_class("title-2")
     return widget
 
 
 def button(text, callback, *, primary=False):
-    widget = Gtk.Button(label=text, height_request=44)
+    widget = Gtk.Button(height_request=44)
+    widget.set_child(
+        Gtk.Label(
+            label=text,
+            wrap=True,
+            wrap_mode=Pango.WrapMode.WORD_CHAR,
+            justify=Gtk.Justification.CENTER,
+        )
+    )
+    widget.update_property([Gtk.AccessibleProperty.LABEL], [text])
     widget.connect("clicked", lambda *_: callback())
     if primary:
         widget.add_css_class("suggested-action")
@@ -66,6 +81,7 @@ class VoiceWindow(Adw.ApplicationWindow):
         self.unsubscribe = None
         self._rendering = False
         self._held = False
+        self._hold_pressed = False
         self._closed = False
         self._reviewed_id = None
         self._custom_id = None
@@ -316,12 +332,21 @@ class VoiceWindow(Adw.ApplicationWindow):
         consent.append(self.focus_delay)
         self.capture_limit = Gtk.SpinButton.new_with_range(5, 60, 1)
         consent.append(label("Maximum held capture (5–60 seconds)"))
+        self.capture_limit.update_property(
+            [Gtk.AccessibleProperty.LABEL], ["Maximum held capture seconds"]
+        )
         consent.append(self.capture_limit)
         self.review_lifetime = Gtk.SpinButton.new_with_range(10, 120, 1)
         consent.append(label("Review expires after (10–120 seconds)"))
+        self.review_lifetime.update_property(
+            [Gtk.AccessibleProperty.LABEL], ["Review expires after seconds"]
+        )
         consent.append(self.review_lifetime)
         consent.append(label("Appearance"))
         self.theme = Gtk.DropDown.new_from_strings(["System", "Light", "Dark"])
+        self.theme.update_property(
+            [Gtk.AccessibleProperty.LABEL], ["Appearance: System, Light or Dark"]
+        )
         consent.append(self.theme)
         self.save_settings = button(
             "Save settings and revoke live grants", self.persist_settings, primary=True
@@ -435,19 +460,22 @@ class VoiceWindow(Adw.ApplicationWindow):
         )
 
     def hold_begin(self):
-        if not self._held and can_capture(self.controller.snapshot):
+        if not self._hold_pressed and can_capture(self.controller.snapshot):
+            self._hold_pressed = True
             self._held = True
             if not self.controller.start_recording():
                 self._held = False
             self.render(self.controller.snapshot)
 
     def hold_end(self):
+        self._hold_pressed = False
         if self._held:
             self._held = False
             self.controller.finish_recording()
 
     def _cancel_hold(self):
         if self._held:
+            self._hold_pressed = False
             self._held = False
             self.controller.cancel()
 
@@ -812,11 +840,16 @@ class VoiceWindow(Adw.ApplicationWindow):
                 )
                 or "No granted global bindings. Local controls remain available."
             )
+            if snapshot.state is not State.RECORDING:
+                self._held = False
             self.hold_button.set_sensitive(can_capture(snapshot) or self._held)
             self.hold_button.set_label(
-                "Recording · release to finish"
-                if self._held
-                else "Hold to talk · Space while focused"
+                {
+                    "loading": "Preparing capture · release to cancel",
+                    "recording": "Recording · release to finish",
+                    "processing": "Processing locally · microphone off",
+                    "idle": "Hold to talk · Space while focused",
+                }[snapshot.microphone_activity]
             )
             self.practice_box.set_visible(snapshot.practice)
             for widget in (

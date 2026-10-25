@@ -36,6 +36,21 @@ class PresentationTests(unittest.TestCase):
         ]:
             self.assertFalse(ui_model.can_capture(replace(ready, **{field: value})))
 
+    def test_capture_control_stays_disabled_until_pending_work_is_cancelled(self):
+        from wayland_voice_control.domain import State
+
+        ready = replace(
+            self.controller.snapshot,
+            practice=False,
+            microphone_consent=True,
+            permission_granted=True,
+            model_readiness="ready",
+        )
+        for state in State:
+            self.assertEqual(
+                ui_model.can_capture(replace(ready, state=state)), state is State.IDLE
+            )
+
     def test_review_displays_exact_immutable_custom_details(self):
         from wayland_voice_control.commands import CustomShortcut
 

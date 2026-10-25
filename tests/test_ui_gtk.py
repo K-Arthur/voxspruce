@@ -258,6 +258,71 @@ class NativeWindowTests(unittest.TestCase):
         self.window.hold_end()
         self.assertEqual(controller.snapshot.state, State.IDLE)
 
+    def test_duration_cap_clears_indicator_but_latches_until_physical_release(self):
+        self.window.practice_switch.set_active(False)
+        controller = self.window.controller
+        controller._model_readiness = "ready"
+        controller.settings = __import__("dataclasses").replace(
+            controller.settings, microphone_consent=True
+        )
+        controller._workflow.set_microphone_consent(True)
+        controller.connect()
+        controller.remote.grant()
+        self.window.hold_begin()
+        controller.audio.callbacks["on_activity"]("recording")
+        self.assertIn("Recording", self.window.hold_button.get_label())
+        controller.audio.callbacks["on_activity"]("processing")
+        controller.audio.callbacks["on_result"]("after duration cap")
+        self.assertNotIn("Recording", self.window.hold_button.get_label())
+        self.window.hold_begin()  # key auto-repeat while the same key remains held
+        self.assertEqual(controller.snapshot.state, State.REVIEWING)
+        controller.cancel()
+        self.window.hold_begin()  # cancelling a capped action still must not restart this hold
+        self.assertEqual(controller.snapshot.state, State.IDLE)
+        self.window.hold_end()
+        self.window.hold_begin()
+        self.assertEqual(controller.snapshot.state, State.RECORDING)
+        self.window.hold_end()
+
+    def test_inputs_have_programmatic_accessible_labels(self):
+        from gi.repository import Gtk
+
+        for widget in (
+            self.window.model_path,
+            self.window.mic_consent,
+            self.window.focus_delay,
+            self.window.capture_limit,
+            self.window.review_lifetime,
+            self.window.theme,
+            self.window.custom_phrase,
+            self.window.custom_chord,
+            self.window.custom_description,
+            self.window.custom_enabled,
+            self.window.practice_entry,
+        ):
+            with self.subTest(widget=widget):
+                self.assertTrue(
+                    Gtk.test_accessible_has_property(
+                        widget, Gtk.AccessibleProperty.LABEL
+                    )
+                )
+
+    def test_long_custom_phrases_do_not_force_wide_buttons(self):
+        from gi.repository import Gtk
+
+        from wayland_voice_control.commands import CustomShortcut
+
+        self.window.controller.add_custom_shortcut(
+            CustomShortcut("long", "x" * 100, "Ctrl+S")
+        )
+        row = self.window.command_list.get_last_child().get_prev_sibling()
+        edit = row.get_first_child().get_next_sibling()
+        practice = edit.get_next_sibling()
+        self.assertLessEqual(edit.measure(Gtk.Orientation.HORIZONTAL, -1).minimum, 300)
+        self.assertLessEqual(
+            practice.measure(Gtk.Orientation.HORIZONTAL, -1).minimum, 300
+        )
+
     def test_real_practice_factory_never_touches_live_constructor(self):
         from wayland_voice_control.ui_model import create_controller
 

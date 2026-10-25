@@ -14,7 +14,7 @@ def can_capture(snapshot):
         and snapshot.microphone_consent
         and snapshot.permission_granted
         and snapshot.model_readiness == "ready"
-        and snapshot.state not in (State.RECORDING, State.PROCESSING, State.EXECUTING)
+        and snapshot.state is State.IDLE
     )
 
 
