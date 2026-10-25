@@ -193,7 +193,7 @@ class AudioTests(unittest.TestCase):
         self.jobs.pop()()
         self.flush()
         self.assertEqual(self.spawned, [])
-        self.assertIn("bad model", str(self.errors[0]))
+        self.assertIn("Check the local model and microphone", str(self.errors[0]))
 
     def test_model_is_cached_recognizer_is_fresh_each_session(self):
         models, recognizers = [], []
@@ -302,3 +302,70 @@ class AudioTests(unittest.TestCase):
         self.flush()
         self.assertFalse(self.spawned)
         self.assertNotIn("recording", self.events)
+
+    def test_dependency_exception_payload_never_reaches_callback_or_output(self):
+        import contextlib
+        import io
+
+        sentinel = "recognized private text: example confidential note"
+        for exception_type in (ValueError, AudioError):
+            with self.subTest(exception_type=exception_type):
+                self.errors.clear()
+                self.reads = 0
+
+                def fail(_chunk, exception_type=exception_type):
+                    raise exception_type(sentinel)
+
+                self.recognizer.AcceptWaveform = fail
+                output = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(output),
+                    contextlib.redirect_stderr(output),
+                ):
+                    self.start()
+                    self.jobs.pop()()
+                    self.flush()
+                self.assertEqual(len(self.errors), 1)
+                self.assertNotIn(sentinel, str(self.errors[0]))
+                self.assertNotIn(sentinel, repr(self.errors[0]))
+                self.assertIsNone(self.errors[0].__context__)
+                self.assertEqual(output.getvalue(), "")
+                self.assertIn(
+                    "Check the local model and microphone", str(self.errors[0])
+                )
+
+    def test_cleanup_exception_payload_never_reaches_callback(self):
+        sentinel = "recognized private text: example confidential note"
+
+        def fail(timeout=None):
+            raise ValueError(sentinel)
+
+        self.process.wait = fail
+        self.start()
+        self.jobs.pop()()
+        self.flush()
+        self.assertEqual(len(self.errors), 1)
+        self.assertNotIn(sentinel, str(self.errors[0]))
+        self.assertIn("Microphone cleanup failed", str(self.errors[0]))
+        self.assertIsNone(self.errors[0].__context__)
+
+    def test_timer_cleanup_exception_is_private_and_does_not_skip_child_cleanup(self):
+        sentinel = "recognized private text: example confidential note"
+
+        def timer(limit, callback):
+            result = Timer(limit, callback)
+
+            def fail():
+                raise ValueError(sentinel)
+
+            result.cancel = fail
+            return result
+
+        self.capture.timer_factory = timer
+        self.start()
+        self.jobs.pop()()
+        self.flush()
+        self.assertTrue(self.process.waited)
+        self.assertEqual(len(self.errors), 1)
+        self.assertNotIn(sentinel, str(self.errors[0]))
+        self.assertIn("Microphone cleanup failed", str(self.errors[0]))

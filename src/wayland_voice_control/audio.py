@@ -19,6 +19,10 @@ class AudioError(RuntimeError):
     """Local recognition or microphone capture could not complete."""
 
 
+class _CaptureFault(AudioError):
+    """Only fixed, application-authored messages may cross the worker boundary."""
+
+
 def load_local_model(path):
     import vosk
 
@@ -135,10 +139,10 @@ class AudioCapture:
                 nonlocal total_characters
                 text = json.loads(raw).get("text", "")
                 if not isinstance(text, str):
-                    raise AudioError("The recognizer returned invalid text.")
+                    raise _CaptureFault("The recognizer returned invalid text.")
                 total_characters += len(text) + 1
                 if total_characters > 4001:
-                    raise AudioError(
+                    raise _CaptureFault(
                         "Recognized text exceeded the 4000 character limit."
                     )
                 if text.strip():
@@ -169,11 +173,11 @@ class AudioCapture:
                         if not chunk:
                             if stop.is_set():
                                 break
-                            raise AudioError(
+                            raise _CaptureFault(
                                 "The microphone recorder exited unexpectedly."
                             )
                         if len(chunk) > 4096:
-                            raise AudioError(
+                            raise _CaptureFault(
                                 "The microphone returned an oversized audio block."
                             )
                         if recognizer.AcceptWaveform(chunk):
@@ -188,23 +192,37 @@ class AudioCapture:
                         if not chunk:
                             break
                         if len(chunk) > 4096:
-                            raise AudioError(
+                            raise _CaptureFault(
                                 "The microphone returned an oversized audio block."
                             )
                         if recognizer.AcceptWaveform(chunk):
                             collect(recognizer.Result())
                     emit(on_activity, "processing")
                     collect(recognizer.FinalResult())
-            except Exception as caught:  # noqa: BLE001 - contain errors at the OS/model boundary
-                error = AudioError(f"Local recognition failed: {caught}")
+            except _CaptureFault as caught:
+                error = AudioError(str(caught))
+            except Exception:  # noqa: BLE001 - dependency messages may contain private speech
+                error = AudioError(
+                    "Local recognition failed. Check the local model and microphone, "
+                    "then try a new recording."
+                )
             finally:
+                cleanup_failed = False
                 if timer:
-                    timer.cancel()
+                    try:
+                        timer.cancel()
+                    except Exception:  # noqa: BLE001 - never expose dependency exception payloads
+                        cleanup_failed = True
                 if process:
                     try:
                         _cleanup(process)
-                    except Exception as caught:  # noqa: BLE001 - contain errors at the OS/model boundary
-                        error = AudioError(f"Microphone cleanup failed: {caught}")
+                    except Exception:  # noqa: BLE001 - never expose process exception payloads
+                        cleanup_failed = True
+                if cleanup_failed:
+                    error = AudioError(
+                        "Microphone cleanup failed. Stop the application and check "
+                        "the local audio service before recording again."
+                    )
                 with self._lock:
                     self._active = False
                     self._process = None
