@@ -11,6 +11,7 @@ import time
 from dataclasses import dataclass
 from types import MappingProxyType
 
+from .commands import command_catalogue
 from .domain import DomainError, Mode, PendingAction, State, Workflow
 
 
@@ -28,6 +29,10 @@ class Snapshot:
     microphone_consent: bool
     practice: bool
     shortcut_bindings: object
+    commands: object
+    custom_shortcuts: tuple
+    edit_token: str | None
+    practice_last_action: PendingAction | None
 
 
 class PracticeInput:
@@ -35,11 +40,15 @@ class PracticeInput:
 
     granted = True
 
+    def __init__(self):
+        self.last_action = None
+
     def connect(self, callback, parent_window=""):
         self.granted = True
         callback(True, None)
 
     def execute(self, action, callback):
+        self.last_action = action
         callback(None)
 
     def cancel_input(self):
@@ -62,6 +71,7 @@ class Controller:
         shortcuts=None,
         clock=time.monotonic,
         practice=False,
+        custom_shortcuts=None,
     ):
         if practice and not isinstance(remote, PracticeInput):
             raise ValueError("Practice requires an isolated PracticeInput adapter.")
@@ -72,6 +82,12 @@ class Controller:
             (None if practice else shortcuts),
             practice,
         )
+        self._custom_shortcuts = tuple(
+            store.load_custom_shortcuts()
+            if custom_shortcuts is None and store is not None
+            else (() if custom_shortcuts is None else custom_shortcuts)
+        )
+        self._catalogue = command_catalogue(self._custom_shortcuts)
         self.mode = Mode.DICTATION
         self._thread = threading.get_ident()
         self._observers = []
@@ -102,6 +118,7 @@ class Controller:
             confirmation_ttl_seconds=self.settings.confirmation_ttl_seconds,
             clock=self.clock,
         )
+        workflow.set_custom_shortcuts(self._custom_shortcuts)
         workflow.set_microphone_consent(
             self.settings.microphone_consent or self.practice
         )
@@ -133,6 +150,10 @@ class Controller:
             MappingProxyType(dict(self.shortcuts.bindings))
             if self.shortcuts
             else MappingProxyType({}),
+            self._catalogue,
+            self._custom_shortcuts,
+            self._workflow.edit_token,
+            self.remote.last_action if self.practice else None,
         )
 
     def subscribe(self, callback):
@@ -381,6 +402,73 @@ class Controller:
         self._publish("Practice: review and confirm this simulated action.")
         return True
 
+    def begin_edit(self, action_id):
+        """Call before the editor buffer changes; return an opaque edit token."""
+        self._assert_thread()
+        before = self._workflow.pending
+        try:
+            token = self._workflow.begin_edit(action_id)
+        except DomainError as error:
+            if self._workflow.pending is not before:
+                self._generation += 1
+                self._cancel_timer()
+            self._publish(str(error))
+            return None
+        self._generation += 1
+        self._cancel_timer()
+        self._publish("Editing. Re-review the complete text before confirming.")
+        return token
+
+    def finish_edit(self, edit_token, text):
+        self._assert_thread()
+        try:
+            self._workflow.finish_edit(edit_token, text)
+        except DomainError as error:
+            self._publish(str(error))
+            return False
+        self._publish("Edited. Review and confirm the new action.")
+        return True
+
+    def replace_custom_shortcuts(self, items):
+        """Validate, cancel all transient work, persist, then activate a catalogue."""
+        self._assert_thread()
+        catalogue = command_catalogue(items)
+        items = tuple(items)
+        self.cancel()
+        if self.store is not None:
+            self.store.replace_custom_shortcuts(items)
+        self._custom_shortcuts, self._catalogue = items, catalogue
+        self._workflow.set_custom_shortcuts(items)
+        self._publish(
+            "Custom shortcuts updated. Review a new action before confirming."
+        )
+        return items
+
+    def add_custom_shortcut(self, item):
+        self._assert_thread()
+        return self.replace_custom_shortcuts((*self._custom_shortcuts, item))
+
+    def update_custom_shortcut(self, item):
+        self._assert_thread()
+        if not any(current.id == item.id for current in self._custom_shortcuts):
+            raise DomainError("Shortcut ID does not exist.")
+        return self.replace_custom_shortcuts(
+            tuple(
+                item if current.id == item.id else current
+                for current in self._custom_shortcuts
+            )
+        )
+
+    def delete_custom_shortcut(self, identity):
+        self._assert_thread()
+        if not any(current.id == identity for current in self._custom_shortcuts):
+            raise DomainError("Shortcut ID does not exist.")
+        return self.replace_custom_shortcuts(
+            tuple(
+                current for current in self._custom_shortcuts if current.id != identity
+            )
+        )
+
     def edit(self, action_id, text):
         self._assert_thread()
         prior_state, prior_pending = self._workflow.state, self._workflow.pending
@@ -554,11 +642,16 @@ class Controller:
         self._publish("Settings updated. Reconnect explicitly before live recording.")
 
     def update_settings(self, changes):
+        self._assert_thread()
         if self.store is None:
             raise ValueError("No settings store was configured.")
         self.apply_settings(self.store.update(changes))
 
     def reset_settings(self):
+        self._assert_thread()
         if self.store is None:
             raise ValueError("No settings store was configured.")
-        self.apply_settings(self.store.reset())
+        settings = self.store.reset()
+        self._custom_shortcuts = ()
+        self._catalogue = command_catalogue(())
+        self.apply_settings(settings)

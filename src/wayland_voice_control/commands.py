@@ -116,7 +116,9 @@ class CustomShortcut:
                 "Shortcut ID must contain 1–64 ASCII letters, digits, underscores or hyphens."
             )
         phrase = _field(self.phrase, "Phrase", 120)
-        object.__setattr__(self, "phrase", " ".join(phrase.casefold().split()))
+        object.__setattr__(
+            self, "phrase", _field(" ".join(phrase.casefold().split()), "Phrase", 120)
+        )
         object.__setattr__(self, "key_chord", parse_key_chord(self.key_chord)[0])
         _field(self.description, "Description", 240, blank=True)
         if type(self.enabled) is not bool:

@@ -25,6 +25,40 @@ class CliTests(unittest.TestCase):
         self.assertIn("press enter", output.getvalue())
         self.assertIn("high", output.getvalue())
 
+    def test_commands_includes_custom_risk_chord_description_and_disabled_state(self):
+        import tempfile
+        from pathlib import Path
+
+        from wayland_voice_control.commands import CustomShortcut
+        from wayland_voice_control.storage import SettingsStore
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "private" / "settings.db"
+            store = SettingsStore(path)
+            store.add_custom_shortcut(
+                CustomShortcut("save", "save file", "Ctrl+S", "Save document")
+            )
+            store.add_custom_shortcut(
+                CustomShortcut("find", "find text", "Ctrl+F", enabled=False)
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                try:
+                    result = main(["commands", "--settings", str(path)])
+                except SystemExit:
+                    self.fail("commands must accept a custom configuration path")
+            self.assertEqual(result, 0)
+            for value in (
+                "save file",
+                "Ctrl+S",
+                "custom",
+                "high",
+                "Save document",
+                "find text",
+                "disabled",
+            ):
+                self.assertIn(value, output.getvalue())
+
     def test_doctor_json(self):
         output = io.StringIO()
         with (

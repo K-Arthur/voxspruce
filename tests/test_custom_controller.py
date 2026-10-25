@@ -1,0 +1,171 @@
+import threading
+import unittest
+from dataclasses import replace
+
+from tests.test_controller import Audio, Remote, Scheduler
+from wayland_voice_control.commands import CustomShortcut
+from wayland_voice_control.controller import Controller, PracticeInput
+from wayland_voice_control.domain import DomainError, Mode, State
+from wayland_voice_control.storage import Settings
+
+
+class CustomControllerTests(unittest.TestCase):
+    def setUp(self):
+        self.remote, self.audio, self.scheduler = Remote(), Audio(), Scheduler()
+        self.controller = Controller(
+            settings=replace(Settings(), microphone_consent=True),
+            remote=self.remote,
+            audio=self.audio,
+            schedule=self.scheduler.schedule,
+            dispatch=lambda f: f(),
+            clock=lambda: self.scheduler.now,
+        )
+        self.controller.connect()
+        self.remote.grant()
+        self.save = CustomShortcut(
+            "save", "save file", "Ctrl+S", "Save current document"
+        )
+
+    def review(self, text="hello", mode=Mode.DICTATION):
+        self.controller.start_recording(mode)
+        self.controller.finish_recording()
+        self.audio.callbacks["on_result"](text)
+        return self.controller.snapshot.pending
+
+    def custom_api(self):
+        self.assertTrue(
+            hasattr(self.controller, "replace_custom_shortcuts"),
+            "Custom controller API missing",
+        )
+        self.controller.replace_custom_shortcuts((self.save,))
+
+    def test_custom_chord_reviews_and_executes_with_two_distinct_confirmations(self):
+        self.custom_api()
+        action = self.review("save file", Mode.COMMANDS)
+        self.assertEqual(action.key_chord, "Ctrl+S")
+        self.controller.shortcut_event("confirm", False)
+        self.controller.shortcut_event("confirm", False)
+        self.scheduler.advance(5)
+        self.assertFalse(self.remote.actions)
+        self.controller.confirm_second(action.id)
+        self.scheduler.advance(3)
+        self.assertEqual(self.remote.actions[0], action)
+
+    def test_catalogue_change_cancels_capture_draft_and_late_result(self):
+        self.custom_api()
+        self.controller.start_recording(Mode.COMMANDS)
+        callbacks = dict(self.audio.callbacks)
+        callbacks["on_draft"]("save file")
+        self.controller.replace_custom_shortcuts(
+            (replace(self.save, key_chord="Alt+S"),)
+        )
+        callbacks["on_result"]("save file")
+        self.assertEqual(self.controller.snapshot.state, State.IDLE)
+        self.assertEqual(self.controller.snapshot.draft_text, "")
+        self.assertIsNone(self.controller.snapshot.pending)
+        self.assertEqual(self.controller.snapshot.commands["save"].key_chord, "Alt+S")
+
+    def test_manager_add_update_delete_and_reset_cancel_armed_input(self):
+        self.custom_api()
+        action = self.review("save file", Mode.COMMANDS)
+        self.controller.confirm(action.id)
+        self.controller.confirm_second(action.id)
+        self.controller.delete_custom_shortcut("save")
+        self.controller.shortcut_event("confirm", False)
+        self.scheduler.advance(10)
+        self.assertFalse(self.remote.actions)
+        self.controller.add_custom_shortcut(self.save)
+        self.controller.update_custom_shortcut(replace(self.save, enabled=False))
+        self.assertNotIn("save", self.controller.snapshot.commands)
+        self.assertFalse(self.controller.snapshot.custom_shortcuts[0].enabled)
+        with self.assertRaises(DomainError):
+            self.controller.add_custom_shortcut(self.save)
+
+    def test_begin_edit_disarms_global_confirm_and_countdown_while_buffer_can_be_empty(
+        self,
+    ):
+        action = self.review()
+        self.controller.confirm(action.id)
+        self.assertTrue(
+            hasattr(self.controller, "begin_edit"), "Staged controller editing missing"
+        )
+        token = self.controller.begin_edit(action.id)
+        self.controller.shortcut_event("confirm", False)
+        self.assertEqual(self.controller.snapshot.state, State.EDITING)
+        self.assertIsNone(self.controller.snapshot.pending)
+        self.assertEqual(self.controller.snapshot.countdown_seconds, 0)
+        self.assertFalse(self.controller.finish_edit(token, ""))
+        self.scheduler.advance(10)
+        self.assertFalse(self.remote.actions)
+        self.assertTrue(self.controller.finish_edit(token, "replacement"))
+        newer = self.controller.snapshot.pending
+        self.assertFalse(self.controller.finish_edit(token, "stale"))
+        self.assertEqual(self.controller.snapshot.pending, newer)
+        self.assertNotEqual(newer.id, action.id)
+
+    def test_edit_second_confirmation_resets_all_approval_and_stale_begin_keeps_timer(
+        self,
+    ):
+        action = self.review("press enter", Mode.COMMANDS)
+        self.controller.confirm(action.id)
+        self.assertTrue(
+            hasattr(self.controller, "begin_edit"), "Staged controller editing missing"
+        )
+        token = self.controller.begin_edit(action.id)
+        self.controller.finish_edit(token, "press enter")
+        new = self.controller.snapshot.pending
+        self.controller.confirm(new.id)
+        self.controller.confirm_second(new.id)
+        self.assertIsNone(self.controller.begin_edit(action.id))
+        self.scheduler.advance(3)
+        self.assertEqual(self.remote.actions[0], new)
+
+    def test_practice_preview_records_only_simulated_reviewed_plan_and_never_touches_audio(
+        self,
+    ):
+        self.custom_api()
+        practice = Controller(
+            settings=Settings(),
+            remote=PracticeInput(),
+            audio=self.audio,
+            schedule=self.scheduler.schedule,
+            dispatch=lambda f: f(),
+            clock=lambda: self.scheduler.now,
+            practice=True,
+            custom_shortcuts=(self.save,),
+        )
+        practice.review_text("save file", Mode.COMMANDS)
+        action = practice.snapshot.pending
+        practice.confirm(action.id)
+        practice.confirm_second(action.id)
+        self.scheduler.advance(3)
+        self.assertEqual(practice.snapshot.practice_last_action, action)
+        self.assertIn("no desktop input", practice.snapshot.status)
+        self.assertFalse(self.audio.callbacks)
+        self.assertFalse(self.remote.actions)
+
+    def test_update_settings_and_custom_mutations_reject_worker_before_store_changes(
+        self,
+    ):
+        class Store:
+            calls = 0
+
+            def update(self, changes):
+                self.calls += 1
+                return Settings()
+
+        store = Store()
+        self.controller.store = store
+        errors = []
+
+        def worker():
+            try:
+                self.controller.update_settings({"theme": "dark"})
+            except RuntimeError as error:
+                errors.append(error)
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        thread.join()
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(store.calls, 0)

@@ -19,4 +19,4 @@ speech = ["vosk>=0.3.45,<0.4"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-wayland_voice_control = ["schema.sql"]
+wayland_voice_control = ["schema.sql", "custom-shortcuts.sql"]

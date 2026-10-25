@@ -2,9 +2,11 @@
 
 import argparse
 import json
+from pathlib import Path
 
 from .commands import COMMANDS
 from .diagnostics import diagnose
+from .storage import SettingsError, SettingsStore, default_settings_path
 
 
 def main(argv=None):
@@ -18,11 +20,30 @@ def main(argv=None):
     doctor.add_argument(
         "--json", action="store_true", help="Print machine-readable diagnostics"
     )
-    subparsers.add_parser("commands", help="Show the exact command allowlist and risks")
+    commands = subparsers.add_parser(
+        "commands", help="Show exact built-in and custom phrases, chords and risks"
+    )
+    commands.add_argument(
+        "--settings", type=Path, help="Use a specific settings database"
+    )
     arguments = parser.parse_args(argv)
     if arguments.command == "commands":
+        path = arguments.settings or default_settings_path()
+        try:
+            custom = (
+                SettingsStore(path).load_custom_shortcuts()
+                if path.exists() or arguments.settings
+                else ()
+            )
+        except SettingsError as error:
+            parser.error(str(error))
         for command in COMMANDS.values():
             print(f"{command.phrase:20} {command.key_chord:12} {command.risk.value}")
+        for item in custom:
+            print(
+                f"{item.phrase:20} {item.key_chord:12} high custom "
+                f"{'enabled' if item.enabled else 'disabled'} {item.description}"
+            )
         return 0
     if arguments.command == "doctor":
         report = diagnose()

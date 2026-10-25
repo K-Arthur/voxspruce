@@ -182,14 +182,14 @@ class SettingsTests(unittest.TestCase):
             tables = connection.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"
             ).fetchall()
-            self.assertEqual(tables, [("settings",)])
+            self.assertEqual(tables, [("settings",), ("custom_voice_shortcuts",)])
             columns = {
                 row[1] for row in connection.execute("PRAGMA table_info(settings)")
             }
             self.assertEqual(
                 columns, set(dataclasses.asdict(self.storage.Settings())) | {"id"}
             )
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 1)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
 
     def test_created_database_and_directory_are_private(self):
         self.store.load()

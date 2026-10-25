@@ -116,6 +116,10 @@ class Workflow:
         return self._pending
 
     @property
+    def edit_token(self) -> str | None:
+        return self._edit_token
+
+    @property
     def error(self) -> str | None:
         return self._error
 

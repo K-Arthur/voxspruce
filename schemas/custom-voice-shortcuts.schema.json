@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Intentional custom voice shortcut configuration",
+  "type": "array",
+  "maxItems": 100,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id",
+      "phrase",
+      "key_chord",
+      "description",
+      "enabled"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,64}$"
+      },
+      "phrase": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120,
+        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]+$"
+      },
+      "key_chord": {
+        "type": "string",
+        "maxLength": 64,
+        "pattern": "^(Ctrl\\+)?(Alt\\+)?(Shift\\+)?(Super\\+)?([A-Z0-9]|Space|Return|Tab|Escape|BackSpace|Delete|Home|End|Left|Right|Up|Down|PageUp|PageDown|F[1-9]|F1[0-2])$"
+      },
+      "description": {
+        "type": "string",
+        "maxLength": 240
+      },
+      "enabled": {
+        "type": "boolean"
+      }
+    }
+  }
+}

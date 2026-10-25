@@ -10,7 +10,11 @@ from dataclasses import asdict, dataclass, fields, replace
 from importlib.resources import files
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+from .commands import CustomShortcut, command_catalogue
+from .domain import DomainError
+
+SCHEMA_VERSION = 2
+SETTINGS_SCHEMA_VERSION = 1
 
 
 class SettingsError(ValueError):
@@ -19,7 +23,7 @@ class SettingsError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class Settings:
-    schema_version: int = SCHEMA_VERSION
+    schema_version: int = SETTINGS_SCHEMA_VERSION
     model_path: str = ""
     microphone_consent: bool = False
     confirmation_ttl_seconds: float = 30
@@ -30,7 +34,7 @@ class Settings:
     def __post_init__(self) -> None:
         if (
             type(self.schema_version) is not int
-            or self.schema_version != SCHEMA_VERSION
+            or self.schema_version != SETTINGS_SCHEMA_VERSION
         ):
             raise SettingsError("Unsupported settings schema version.")
         if (
@@ -97,6 +101,104 @@ class SettingsStore:
         with self._connection() as connection:
             return self._read(connection)
 
+    def load_configuration(self) -> tuple[Settings, tuple[CustomShortcut, ...]]:
+        with self._connection() as connection, connection:
+            connection.execute("BEGIN")
+            return self._read(connection), self._read_custom(connection)
+
+    def load_custom_shortcuts(self) -> tuple[CustomShortcut, ...]:
+        with self._connection() as connection:
+            return self._read_custom(connection)
+
+    @staticmethod
+    def _validate_custom(items):
+        try:
+            command_catalogue(items)
+        except DomainError as error:
+            raise SettingsError(str(error)) from error
+        return tuple(items)
+
+    @classmethod
+    def _read_custom(cls, connection):
+        try:
+            rows = connection.execute(
+                "SELECT id, phrase, key_chord, description, enabled FROM custom_voice_shortcuts ORDER BY rowid"
+            ).fetchall()
+            items = []
+            for row in rows:
+                values = dict(row)
+                enabled = values["enabled"]
+                if type(enabled) is not int or enabled not in (0, 1):
+                    raise SettingsError("Stored shortcut enabled flag is invalid.")
+                values["enabled"] = bool(enabled)
+                item = CustomShortcut(**values)
+                if (
+                    item.phrase != values["phrase"]
+                    or item.key_chord != values["key_chord"]
+                ):
+                    raise SettingsError("Stored shortcut must be canonical.")
+                items.append(item)
+            return cls._validate_custom(items)
+        except DomainError as error:
+            raise SettingsError(str(error)) from error
+
+    @staticmethod
+    def _write_custom(connection, items):
+        connection.execute("DELETE FROM custom_voice_shortcuts")
+        connection.executemany(
+            "INSERT INTO custom_voice_shortcuts (id, phrase, key_chord, description, enabled) VALUES (?, ?, ?, ?, ?)",
+            [
+                (item.id, item.phrase, item.key_chord, item.description, item.enabled)
+                for item in items
+            ],
+        )
+
+    def replace_custom_shortcuts(self, items) -> tuple[CustomShortcut, ...]:
+        items = self._validate_custom(items)
+        with self._connection() as connection, connection:
+            connection.execute("BEGIN IMMEDIATE")
+            self._write_custom(connection, items)
+        return items
+
+    def _mutate_custom(self, item=None, *, identity=None, add=False):
+        if item is not None:
+            self._validate_custom((item,))
+            identity = item.id
+        with self._connection() as connection, connection:
+            connection.execute("BEGIN IMMEDIATE")
+            items = list(self._read_custom(connection))
+            found = next(
+                (
+                    index
+                    for index, current in enumerate(items)
+                    if current.id == identity
+                ),
+                None,
+            )
+            if add:
+                if found is not None:
+                    raise SettingsError("Shortcut ID already exists.")
+                items.append(item)
+            else:
+                if found is None:
+                    raise SettingsError("Shortcut ID does not exist.")
+                if item is None:
+                    del items[found]
+                else:
+                    items[found] = item
+            result = self._validate_custom(items)
+            self._write_custom(connection, result)
+            return result
+
+    def add_custom_shortcut(self, item) -> tuple[CustomShortcut, ...]:
+        return self._mutate_custom(item, add=True)
+
+    def update_custom_shortcut(self, item) -> tuple[CustomShortcut, ...]:
+        return self._mutate_custom(item)
+
+    def delete_custom_shortcut(self, identity: str) -> tuple[CustomShortcut, ...]:
+        return self._mutate_custom(identity=identity)
+
     def update(self, changes: Mapping[str, object]) -> Settings:
         if not isinstance(changes, Mapping):
             raise SettingsError("Settings changes must be a mapping.")
@@ -113,6 +215,7 @@ class SettingsStore:
         with self._connection() as connection, connection:
             connection.execute("BEGIN IMMEDIATE")
             settings = Settings()
+            self._write_custom(connection, ())
             self._write(connection, settings)
             return settings
 
@@ -147,6 +250,7 @@ class SettingsStore:
                 os.close(descriptor)
             connection = sqlite3.connect(self.path)
             connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA foreign_keys = ON")
             version = self._check_version(connection)
             if version == 0:
                 tables = connection.execute(
@@ -161,6 +265,18 @@ class SettingsStore:
                     .joinpath("schema.sql")
                     .read_text(encoding="utf-8")
                 )
+            elif version == 1:
+                # CREATE and version advance commit together; validate legacy
+                # preferences before migration and never rewrite their values.
+                with connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    self._read(connection)
+                    connection.execute(
+                        files("wayland_voice_control")
+                        .joinpath("custom-shortcuts.sql")
+                        .read_text(encoding="utf-8")
+                    )
+                    connection.execute("PRAGMA user_version = 2")
             os.chmod(self.path, 0o600)
             yield connection
         except (sqlite3.Error, OSError) as error:
@@ -174,7 +290,7 @@ class SettingsStore:
     @staticmethod
     def _check_version(connection: sqlite3.Connection) -> int:
         version = connection.execute("PRAGMA user_version").fetchone()[0]
-        if version not in (0, SCHEMA_VERSION):
+        if version not in (0, 1, SCHEMA_VERSION):
             raise SettingsError(
                 "Unsupported or newer settings schema version. The database was not changed."
             )

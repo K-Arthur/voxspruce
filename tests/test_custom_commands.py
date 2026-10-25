@@ -76,6 +76,11 @@ class CustomCommandTests(unittest.TestCase):
             with self.subTest(field=field, value=value), self.assertRaises(DomainError):
                 Shortcut(**data)
 
+    def test_casefold_expansion_cannot_exceed_canonical_phrase_limit(self):
+        Shortcut = self.api()
+        with self.assertRaises(DomainError):
+            Shortcut("large", "ß" * 120, "S")
+
     def test_key_chords_are_single_validated_canonical_plans(self):
         self.assertTrue(
             hasattr(commands, "parse_key_chord"), "Safe chord parser is missing"
