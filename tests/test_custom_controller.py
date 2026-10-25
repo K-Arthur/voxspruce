@@ -210,6 +210,130 @@ class CustomControllerTests(unittest.TestCase):
                         self.fail("Malformed manager item was accepted")
                     self.assertEqual(self.controller.snapshot.pending, action)
 
+    def test_two_controllers_preserve_other_item_changes_with_stale_catalogues(self):
+        import tempfile
+        from pathlib import Path
+
+        from wayland_voice_control.storage import SettingsStore
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "private" / "settings.db"
+            store_a, store_b = SettingsStore(path), SettingsStore(path)
+
+            def controller(store):
+                return Controller(
+                    settings=store.load(),
+                    store=store,
+                    remote=PracticeInput(),
+                    audio=self.audio,
+                    schedule=self.scheduler.schedule,
+                    dispatch=lambda f: f(),
+                    practice=True,
+                )
+
+            first, second = controller(store_a), controller(store_b)
+            opened = CustomShortcut("open", "open file", "Ctrl+O")
+            first.add_custom_shortcut(self.save)
+            second.add_custom_shortcut(opened)
+            self.assertEqual(store_a.load_custom_shortcuts(), (self.save, opened))
+            disabled = replace(self.save, enabled=False)
+            first.update_custom_shortcut(disabled)
+            self.assertEqual(store_a.load_custom_shortcuts(), (disabled, opened))
+            # Second still holds the old enabled save entry: deleting open must
+            # neither resurrect that flag nor remove an unrelated new entry.
+            third = CustomShortcut("print", "print file", "Ctrl+P")
+            first.add_custom_shortcut(third)
+            second.delete_custom_shortcut("open")
+            self.assertEqual(second.snapshot.custom_shortcuts, (disabled, third))
+            self.assertEqual(store_a.load_custom_shortcuts(), (disabled, third))
+            # Also allow operations on IDs absent from this controller's cache.
+            second.add_custom_shortcut(opened)
+            first.update_custom_shortcut(replace(opened, key_chord="Alt+O"))
+            first.delete_custom_shortcut("open")
+            second.delete_custom_shortcut("print")
+            second.add_custom_shortcut(third)
+            self.assertEqual(store_a.load_custom_shortcuts(), (disabled, third))
+            unseen = CustomShortcut("unseen", "new phrase", "Ctrl+N")
+            store_b.add_custom_shortcut(unseen)
+            first.update_custom_shortcut(replace(unseen, enabled=False))
+            unseen_delete = CustomShortcut("unseen-delete", "delete phrase", "Ctrl+D")
+            store_b.add_custom_shortcut(unseen_delete)
+            first.delete_custom_shortcut(unseen_delete.id)
+            self.assertEqual(
+                store_a.load_custom_shortcuts(),
+                (disabled, third, replace(unseen, enabled=False)),
+            )
+
+    def test_item_validation_precedes_cancel_and_storage_failure_keeps_old_catalogue_disarmed(
+        self,
+    ):
+        import tempfile
+        from pathlib import Path
+
+        from wayland_voice_control.storage import SettingsError, SettingsStore
+
+        with tempfile.TemporaryDirectory() as directory:
+            controller = self.controller
+
+            class Store(SettingsStore):
+                fail = False
+
+                def add_custom_shortcut(self, item):
+                    self_test.assertIsNone(controller.snapshot.pending)
+                    self_test.assertEqual(controller.snapshot.state, State.IDLE)
+                    if self.fail:
+                        raise SettingsError("test write failure")
+                    return super().add_custom_shortcut(item)
+
+            self_test = self
+            store = Store(Path(directory) / "private" / "settings.db")
+            controller.store = store
+            controller.add_custom_shortcut(self.save)
+            action = self.review()
+            with self.assertRaises(DomainError):
+                controller.add_custom_shortcut(
+                    replace(self.save, id="duplicate-phrase")
+                )
+            self.assertEqual(controller.snapshot.pending, action)
+            controller.confirm(action.id)
+            store.fail = True
+            with self.assertRaises(SettingsError):
+                controller.add_custom_shortcut(
+                    CustomShortcut("open", "open file", "Ctrl+O")
+                )
+            self.assertIsNone(controller.snapshot.pending)
+            self.assertEqual(controller.snapshot.custom_shortcuts, (self.save,))
+            self.assertEqual(store.load_custom_shortcuts(), (self.save,))
+            self.scheduler.advance(10)
+            self.assertFalse(self.remote.actions)
+
+    def test_reset_revokes_and_disarms_before_store_write_even_when_reset_fails(self):
+        from wayland_voice_control.storage import SettingsError
+
+        self.custom_api()
+        action = self.review()
+        self.controller.confirm(action.id)
+        controller = self.controller
+        old_settings = controller.settings
+        self_test = self
+
+        class Store:
+            def reset(self):
+                self_test.assertIsNone(controller.snapshot.pending)
+                self_test.assertFalse(controller.snapshot.permission_granted)
+                self_test.assertGreater(self_test.remote.closed, 0)
+                self_test.assertEqual(controller.snapshot.countdown_seconds, 0)
+                raise SettingsError("test reset failure")
+
+        controller.store = Store()
+        with self.assertRaises(SettingsError):
+            controller.reset_settings()
+        self.assertEqual(controller.settings, old_settings)
+        self.assertEqual(controller.snapshot.custom_shortcuts, (self.save,))
+        self.assertIsNone(controller.snapshot.pending)
+        self.scheduler.advance(10)
+        self.assertFalse(self.remote.actions)
+
     def test_update_settings_and_custom_mutations_reject_worker_before_store_changes(
         self,
     ):

@@ -429,46 +429,67 @@ class Controller:
         self._publish("Edited. Review and confirm the new action.")
         return True
 
-    def replace_custom_shortcuts(self, items):
-        """Validate, cancel all transient work, persist, then activate a catalogue."""
-        self._assert_thread()
+    def _activate_custom_shortcuts(self, items):
         catalogue = command_catalogue(items)
-        items = tuple(items)
-        self.cancel()
-        if self.store is not None:
-            self.store.replace_custom_shortcuts(items)
-        self._custom_shortcuts, self._catalogue = items, catalogue
-        self._workflow.set_custom_shortcuts(items)
+        self._custom_shortcuts, self._catalogue = tuple(items), catalogue
+        self._workflow.set_custom_shortcuts(self._custom_shortcuts)
         self._publish(
             "Custom shortcuts updated. Review a new action before confirming."
         )
-        return items
+        return self._custom_shortcuts
+
+    def replace_custom_shortcuts(self, items):
+        """Explicit full replacement: validate, cancel, persist, then activate."""
+        self._assert_thread()
+        command_catalogue(items)
+        items = tuple(items)
+        self.cancel()
+        if self.store is not None:
+            items = self.store.replace_custom_shortcuts(items)
+        return self._activate_custom_shortcuts(items)
+
+    def _mutate_custom_shortcut(self, operation, *, item=None, identity=None):
+        self._assert_thread()
+        if operation != "delete":
+            command_catalogue((item,))
+            identity = item.id
+        # Preflight against current configuration, rather than a potentially
+        # stale controller snapshot. The store repeats validation under its
+        # write lock, so concurrent writers cannot lose unrelated changes.
+        current = (
+            self.store.load_custom_shortcuts()
+            if self.store is not None
+            else self._custom_shortcuts
+        )
+        if operation == "add":
+            proposed = (*current, item)
+        else:
+            if not any(entry.id == identity for entry in current):
+                raise DomainError("Shortcut ID does not exist.")
+            proposed = (
+                tuple(item if entry.id == identity else entry for entry in current)
+                if operation == "update"
+                else tuple(entry for entry in current if entry.id != identity)
+            )
+        command_catalogue(proposed)
+        self.cancel()
+        if self.store is not None:
+            if operation == "add":
+                proposed = self.store.add_custom_shortcut(item)
+            elif operation == "update":
+                proposed = self.store.update_custom_shortcut(item)
+            else:
+                proposed = self.store.delete_custom_shortcut(identity)
+        return self._activate_custom_shortcuts(proposed)
 
     def add_custom_shortcut(self, item):
-        self._assert_thread()
-        return self.replace_custom_shortcuts((*self._custom_shortcuts, item))
+        return self._mutate_custom_shortcut("add", item=item)
 
     def update_custom_shortcut(self, item):
-        self._assert_thread()
-        command_catalogue((item,))
-        if not any(current.id == item.id for current in self._custom_shortcuts):
-            raise DomainError("Shortcut ID does not exist.")
-        return self.replace_custom_shortcuts(
-            tuple(
-                item if current.id == item.id else current
-                for current in self._custom_shortcuts
-            )
-        )
+        return self._mutate_custom_shortcut("update", item=item)
 
     def delete_custom_shortcut(self, identity):
-        self._assert_thread()
-        if not any(current.id == identity for current in self._custom_shortcuts):
-            raise DomainError("Shortcut ID does not exist.")
-        return self.replace_custom_shortcuts(
-            tuple(
-                current for current in self._custom_shortcuts if current.id != identity
-            )
-        )
+        return self._mutate_custom_shortcut("delete", identity=identity)
 
     def edit(self, action_id, text):
         self._assert_thread()
@@ -652,6 +673,7 @@ class Controller:
         self._assert_thread()
         if self.store is None:
             raise ValueError("No settings store was configured.")
+        self.stop()
         settings = self.store.reset()
         self._custom_shortcuts = ()
         self._catalogue = command_catalogue(())

@@ -113,3 +113,13 @@ No GUI, host keyboard permission, microphone or real desktop input was started
 for this milestone. Native controls and on-screen chord/risk review are the next
 integration task. Independent specification and code-quality reviews remain
 pending; this evidence does not claim hardware compatibility.
+
+
+Task 2c quality-review follow-up reproduced and corrected stale-controller
+item updates that could overwrite another controller's shortcuts. Real shared
+SQLite regressions now cover adds, updates, deletes, unknown-to-cache IDs,
+preflight validation, safe storage failure and activation of the authoritative
+returned catalogue. Reset now revokes/disarms before any database reset and
+preserves old configuration safely on storage failure. These three new tests
+were observed RED before the corrections; the complete suite passes **171 tests**,
+with Ruff and the isolated Gio protocol check passing again.

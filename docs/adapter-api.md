@@ -146,11 +146,18 @@ from the passed store (empty when no store is present). Main-thread APIs:
 - `update_custom_shortcut(item) -> tuple`: replace the matching stable ID.
 - `delete_custom_shortcut(identity) -> tuple`: delete the matching ID.
 
+Item mutations preflight the current persisted configuration, then use the store's
+atomic item-level method and activate the authoritative returned catalogue. A
+controller with an older snapshot cannot overwrite another controller's unrelated
+additions, edits or deletions. `replace_custom_shortcuts` deliberately retains full
+replacement semantics.
+
 Each mutation validates first, cancels capture/drafts/pending review/editing/
 countdown/input and queued callbacks, persists through the configured store, then
 activates the immutable catalogue. A storage failure leaves the previous active
 catalogue and safely cancelled work. `reset_settings()` also empties the catalogue
-and revokes live grants. Catch `DomainError` and `SettingsError` for manager errors.
+and revokes live grants before the storage reset begins. If reset fails, old
+settings/catalogue remain while pending work and grants remain cleared. Catch `DomainError` and `SettingsError` for manager errors.
 
 `Snapshot.custom_shortcuts` is an immutable tuple including disabled entries;
 `Snapshot.commands` is the immutable merged enabled catalogue. `PendingAction`
