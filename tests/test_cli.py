@@ -1,0 +1,55 @@
+import contextlib
+import io
+import json
+import sys
+import types
+import unittest
+from unittest.mock import patch
+
+from wayland_voice_control.__main__ import main
+
+
+class CliTests(unittest.TestCase):
+    def test_help_without_loading_gtk_or_app(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit) as exit:
+            main(["--help"])
+        self.assertEqual(exit.exception.code, 0)
+        self.assertIn("doctor", output.getvalue())
+        self.assertNotIn("wayland_voice_control.app", sys.modules)
+
+    def test_commands_shows_risks_and_exact_phrases(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(["commands"]), 0)
+        self.assertIn("press enter", output.getvalue())
+        self.assertIn("high", output.getvalue())
+
+    def test_doctor_json(self):
+        output = io.StringIO()
+        with (
+            patch(
+                "wayland_voice_control.__main__.diagnose",
+                return_value={"session_type": "wayland"},
+            ),
+            contextlib.redirect_stdout(output),
+        ):
+            self.assertEqual(main(["doctor", "--json"]), 0)
+        self.assertEqual(json.loads(output.getvalue()), {"session_type": "wayland"})
+
+    def test_default_lazily_launches_native_app(self):
+        app = types.ModuleType("wayland_voice_control.app")
+        app.main = lambda: 17
+        with patch.dict(sys.modules, {"wayland_voice_control.app": app}):
+            self.assertEqual(main([]), 17)
+
+    def test_installed_command_entrypoint(self):
+        import tomllib
+        from pathlib import Path
+
+        project = Path(__file__).resolve().parents[1] / "pyproject.toml"
+        metadata = tomllib.loads(project.read_text())
+        self.assertEqual(
+            metadata["project"].get("scripts", {}).get("wayland-voice-control"),
+            "wayland_voice_control.__main__:main",
+        )

@@ -9,6 +9,9 @@ description = "Offline, explicitly confirmed voice assistance for GNOME Wayland"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.scripts]
+wayland-voice-control = "wayland_voice_control.__main__:main"
+
 [project.optional-dependencies]
 speech = ["vosk>=0.3.45,<0.4"]
 
