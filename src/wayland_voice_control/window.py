@@ -45,6 +45,7 @@ def section(parent, title, description=""):
 def entry(parent, title, *, limit=4096):
     parent.append(label(title))
     widget = Gtk.Entry(max_length=limit, hexpand=True)
+    widget.update_property([Gtk.AccessibleProperty.LABEL], [title])
     parent.append(widget)
     return widget
 
@@ -70,6 +71,7 @@ class VoiceWindow(Adw.ApplicationWindow):
         self._custom_id = None
         self._catalogue_signature = None
         self._reader = None
+        self._reader_action_id = None
         self._reader_generation = 0
         self._chooser = None
         self.set_icon_name("io.github.wayland_voice_control")
@@ -78,6 +80,7 @@ class VoiceWindow(Adw.ApplicationWindow):
         self.connect("close-request", self._close)
         self.connect("notify::is-active", self._active_changed)
         keys = Gtk.EventControllerKey()
+        keys.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
         keys.connect("key-pressed", self._window_key)
         self.add_controller(keys)
 
@@ -153,6 +156,7 @@ class VoiceWindow(Adw.ApplicationWindow):
             label="Hold to talk · Space while focused", height_request=56
         )
         self.hold_button.add_css_class("suggested-action")
+        self.hold_button.connect("notify::has-focus", self._hold_focus_changed)
         gesture = Gtk.GestureClick(button=1)
         gesture.connect("pressed", lambda *_: self.hold_begin())
         gesture.connect("released", lambda *_: self.hold_end())
@@ -463,6 +467,10 @@ class VoiceWindow(Adw.ApplicationWindow):
             return True
         return False
 
+    def _hold_focus_changed(self, *_):
+        if not self.hold_button.has_focus():
+            self._cancel_hold()
+
     def _active_changed(self, *_):
         if not self.is_active():
             self._cancel_hold()
@@ -720,14 +728,21 @@ class VoiceWindow(Adw.ApplicationWindow):
         generation = self._reader_generation
         text = action_details(action)
         # No text in command arguments, environment, shell or temporary files.
-        process = subprocess.Popen(
-            [executable, "--stdin"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            shell=False,
-        )
+        try:
+            process = subprocess.Popen(
+                [executable, "--stdin"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                shell=False,
+            )
+        except OSError:
+            self.status.set_text(
+                "Local read-back could not start. Check the espeak-ng installation."
+            )
+            return
         self._reader = process
+        self._reader_action_id = action.id
 
         def run():
             try:
@@ -747,6 +762,7 @@ class VoiceWindow(Adw.ApplicationWindow):
 
     def _stop_reader(self):
         self._reader_generation += 1
+        self._reader_action_id = None
         if self._reader:
             try:
                 self._reader.terminate()
@@ -757,6 +773,13 @@ class VoiceWindow(Adw.ApplicationWindow):
     def render(self, snapshot):
         if self._closed:
             return
+        if self._reader and (
+            snapshot.pending is None
+            or snapshot.pending.id != self._reader_action_id
+            or snapshot.state
+            not in (State.REVIEWING, State.AWAITING_SECOND_CONFIRMATION)
+        ):
+            self._stop_reader()
         self._rendering = True
         try:
             self.mode_status.set_text(
@@ -839,7 +862,11 @@ class VoiceWindow(Adw.ApplicationWindow):
                 if snapshot.state is State.ARMED
                 else ""
             )
-            self.readback_button.set_sensitive(action is not None and not editing)
+            self.readback_button.set_sensitive(
+                action is not None
+                and snapshot.state
+                in (State.REVIEWING, State.AWAITING_SECOND_CONFIRMATION)
+            )
             self.practice_output.set_visible(snapshot.practice)
             if snapshot.practice:
                 self.practice_output.set_text(

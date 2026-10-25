@@ -178,6 +178,86 @@ class NativeWindowTests(unittest.TestCase):
         self.assertIn("Microphone unavailable", self.window.status.get_text())
         self.assertFalse(self.window.confirm_button.get_sensitive())
 
+    def test_readback_is_stopped_on_every_action_invalidation(self):
+        import threading
+
+        class Reader:
+            def __init__(self):
+                self.terminated = False
+                self.finished = threading.Event()
+
+            def communicate(self, *args, **kwargs):
+                self.finished.wait(2)
+
+            def terminate(self):
+                self.terminated = True
+                self.finished.set()
+
+        for invalidate in (
+            lambda: self.window.edit_button.emit("clicked"),
+            lambda: self.window.controller.cancel(),  # includes global cancel
+            lambda: self.window.save_settings.emit("clicked"),
+            lambda: self.window.reset_settings.emit("clicked"),
+            lambda: self.window.confirm_button.emit("clicked"),
+            lambda: self.window.practice_switch.set_active(False),
+        ):
+            if not self.window.controller.practice:
+                self.window.practice_switch.set_active(True)
+            self.practice_review()
+            reader = Reader()
+            with (
+                patch(
+                    "wayland_voice_control.window.shutil.which",
+                    return_value="/usr/bin/espeak-ng",
+                ),
+                patch(
+                    "wayland_voice_control.window.subprocess.Popen", return_value=reader
+                ) as spawn,
+            ):
+                self.window.read_back()
+                self.assertIs(self.window._reader, reader)
+                self.assertEqual(
+                    spawn.call_args.args[0], ["/usr/bin/espeak-ng", "--stdin"]
+                )
+                invalidate()
+                self.assertTrue(reader.terminated)
+                self.assertIsNone(self.window._reader)
+
+    def test_readback_spawn_failure_is_actionable_and_preserves_review(self):
+        self.practice_review()
+        identity = self.window.controller.snapshot.pending.id
+        with (
+            patch(
+                "wayland_voice_control.window.shutil.which",
+                return_value="/usr/bin/espeak-ng",
+            ),
+            patch(
+                "wayland_voice_control.window.subprocess.Popen",
+                side_effect=OSError("gone"),
+            ),
+        ):
+            self.window.read_back()
+        self.assertIn("espeak-ng", self.window.status.get_text())
+        self.assertEqual(self.window.controller.snapshot.pending.id, identity)
+
+    def test_hold_focus_loss_cancels_before_late_release(self):
+        self.window.practice_switch.set_active(False)
+        controller = self.window.controller
+        controller._model_readiness = "ready"
+        controller.settings = __import__("dataclasses").replace(
+            controller.settings, microphone_consent=True
+        )
+        controller._workflow.set_microphone_consent(True)
+        controller.connect()
+        controller.remote.grant()
+        self.window.hold_begin()
+        self.assertTrue(self.window._held)
+        self.window._hold_focus_changed()
+        self.assertFalse(self.window._held)
+        self.assertEqual(controller.snapshot.state, State.IDLE)
+        self.window.hold_end()
+        self.assertEqual(controller.snapshot.state, State.IDLE)
+
     def test_real_practice_factory_never_touches_live_constructor(self):
         from wayland_voice_control.ui_model import create_controller
 
