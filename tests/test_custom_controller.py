@@ -20,6 +20,7 @@ class CustomControllerTests(unittest.TestCase):
             dispatch=lambda f: f(),
             clock=lambda: self.scheduler.now,
         )
+        self.controller.prepare_model()
         self.controller.connect()
         self.remote.grant()
         self.save = CustomShortcut(

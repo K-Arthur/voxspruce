@@ -25,8 +25,11 @@ may round it upward for display. Do not infer microphone activity from workflow
 - `connect(parent_window="")` explicitly asks the desktop for keyboard access.
 - `set_mode(Mode)` changes Dictation/Commands and cancels existing work.
 - `start_recording(mode=None)` begins a held capture using the selected mode;
-  `finish_recording()` releases it. False means capture did not start; display
-  the snapshot status. Duration-cap completion also finishes the workflow.
+  `finish_recording()` releases it. The controller rejects live recording until
+  `prepare_model()` has reported `ready`, including global hold-to-talk events;
+  this prevents cold model loading from consuming the first spoken syllables.
+  False means capture did not start; display the snapshot status. Duration-cap
+  completion also finishes the workflow.
 - `begin_edit(action_id) -> str | None` synchronously removes pending approval,
   cancels the countdown and returns an opaque edit token. Call it before the
   native editor changes its buffer. While `State.EDITING`, keep the complete
@@ -102,7 +105,7 @@ existing local `settings.model_path` on a worker, and requests neither microphon
 nor desktop permission. A stale completion cannot affect newer work. Successful
 readiness survives ordinary cancel/stop because the model remains cached; applying
 settings invalidates readiness and requires explicit preparation again. First-use
-capture also reports loading/ready/error. Practice prohibits both preparation and
+capture cannot implicitly load the model. Practice prohibits both preparation and
 capture. Native controls can require readiness, explicit microphone consent and
 keyboard permission before enabling held live capture.
 

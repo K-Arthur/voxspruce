@@ -295,6 +295,11 @@ class Controller:
                 "Practice uses typed examples only; the microphone stays off."
             )
             return False
+        if self._model_readiness != "ready":
+            self._publish(
+                "Prepare the local speech model in Setup before recording."
+            )
+            return False
         try:
             recording_id = self._workflow.begin_recording(
                 self.mode if mode is None else mode

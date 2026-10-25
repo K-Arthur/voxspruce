@@ -10,6 +10,12 @@ class Audio:
     def __init__(self):
         self.callbacks = {}
         self.cancelled = 0
+        self.preparations = []
+
+    def prepare(self, path, **kwargs):
+        self.preparations.append(kwargs)
+        kwargs["on_state"]("ready")
+        return True
 
     def start(self, path, **kwargs):
         self.callbacks = kwargs
@@ -87,6 +93,7 @@ class ControllerTests(unittest.TestCase):
             dispatch=lambda f: f(),
             clock=lambda: self.scheduler.now,
         )
+        self.controller.prepare_model()
         self.controller.connect()
         self.remote.grant()
 
@@ -96,6 +103,32 @@ class ControllerTests(unittest.TestCase):
         self.controller.finish_recording()
         self.audio.callbacks["on_result"](text)
         return self.controller.snapshot.pending.id
+
+    def test_local_and_global_hold_require_an_explicitly_prepared_model(self):
+        self.controller.apply_settings(self.settings)
+        self.assertEqual(self.controller.snapshot.model_readiness, "idle")
+
+        self.assertFalse(self.controller.start_recording())
+        self.controller.shortcut_event("hold_to_talk", True)
+
+        self.assertEqual(self.controller.snapshot.state, State.IDLE)
+        self.assertEqual(self.controller.snapshot.model_readiness, "idle")
+        self.assertNotIn("on_result", self.audio.callbacks)
+        self.assertIn("prepare", self.controller.snapshot.status.lower())
+
+    def test_loading_or_failed_model_blocks_capture_until_preparation_is_ready(self):
+        preparation = []
+        self.audio.prepare = lambda path, **kwargs: preparation.append(kwargs) or True
+        self.assertTrue(self.controller.prepare_model())
+        self.assertEqual(self.controller.snapshot.model_readiness, "loading")
+        self.assertFalse(self.controller.start_recording())
+
+        preparation[-1]["on_state"]("error")
+        self.assertFalse(self.controller.start_recording())
+        self.assertNotIn("on_result", self.audio.callbacks)
+
+        preparation[-1]["on_state"]("ready")
+        self.assertTrue(self.controller.start_recording())
 
     def test_full_flow_review_confirmation_countdown_and_completion(self):
         action_id = self.review()
@@ -396,7 +429,11 @@ class ControllerTests(unittest.TestCase):
         preparations[-1]["on_state"]("ready")
         preparations[-1]["on_error"](RuntimeError("late"))
         self.controller.cancel()
-        self.controller.start_recording()
+        self.assertTrue(self.controller.prepare_model())
+        preparations[-1]["on_state"]("ready")
+        while queued:
+            queued.pop(0)()
+        self.assertTrue(self.controller.start_recording())
         self.audio.callbacks["on_draft"]("private stale")
         self.controller.cancel()
         while queued:
@@ -453,6 +490,7 @@ class ControllerPortalLifecycleTests(unittest.TestCase):
             dispatch=dispatch,
             clock=lambda: self.scheduler.now,
         )
+        self.controller.prepare_model()
 
     def grant_keyboard(self):
         self.controller.connect()
