@@ -145,7 +145,7 @@ WVC_GTK_TESTS=1 GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=test GIO_USE_VFS=loc
   -m unittest discover -s tests -v
 ```
 
-**200 tests passed, no skips**, including **20 native GTK cases** on this host.
+**203 tests passed, no skips**, including **23 native GTK cases** on this host.
 The real native Vosk regression cases used the optional engine/model fixture
 already installed for prior milestones. The separate pure discovery run before
 the last presentation test passed with native cases explicitly skipped; CI runs
@@ -185,9 +185,10 @@ these did not fail the checks.
 
 The Linux CI workflow is configured for pure tests, real GTK/XTest cases,
 protocol integration, static checks, distribution build and installed entry-point
-inspection. No remote GitHub Actions run is claimed here. UI specification review
-approved the tested behavior after corrections; the final integrated code-quality
-review is tracked separately in the implementation plan.
+inspection. No remote GitHub Actions run is claimed here. Final independent
+specification and code-quality reviews approved commit `ab6cc25`; fresh review
+verification also passed all 203 tests, Ruff, compileall, isolated Gio protocol
+checks and wheel/sdist builds.
 
 Still unperformed: real GNOME permission dialogs, grant denial/revocation by the
 compositor, actual text/Unicode delivery into another application, global shortcuts

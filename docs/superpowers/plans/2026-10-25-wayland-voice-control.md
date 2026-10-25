@@ -58,11 +58,11 @@ Files: `src/wayland_voice_control/{app,window,views,ui_model}.py` (split views a
 - [x] Add a clearly marked interactive practice mode with text/command input and output preview that cannot execute desktop input or open the mic. Add native app icon, desktop entry, local install/run scripts, wheel/sdist package configuration, and CLI help.
 - [x] Document install steps for Debian/Ubuntu and Arch, local model setup/link, runtime offline guarantees and memory limits, SQL/JSON schema, state flow, exact command list, consent semantics, focus/Unicode limits, unsupported desktops and GNOME kill test. Include source-linked technical research and the separate Vibe data-availability report. No invented validation or certification claims.
 - [x] CI: unittest pure suite, dependencies and Xvfb GTK smoke test, compileall, build wheel/sdist and inspect installed entry point. Run complete checks locally and launch/render actual GTK app for inspection at compact and desktop sizes. Record evidence and remaining manual validation.
-- [ ] Specification review, then code-quality review; fix findings with regression tests; final integrated review; commit and deliver files in the user's workspace.
+- [x] Specification review, then code-quality review; fix findings with regression tests; final integrated review; commit and deliver files in the user's workspace. Both independent reviews approved `ab6cc25`; final verification passed 203 tests, Ruff, compileall, private Gio protocol checks and wheel/sdist builds.
 
 ## Acceptance
 
-- [ ] All task reviews approved; tests and build pass freshly.
+- [x] All task reviews approved; tests and build pass freshly.
 - [x] App launches offline without Vosk/model and explains setup; practice mode works end to end.
 - [x] Audio and actual input adapters are implemented, permission-gated and tested at their protocol boundaries.
 - [x] GNOME kill-test status is honest; unperformed hardware/voice/accessibility-user tests remain explicit release gates.
