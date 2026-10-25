@@ -111,8 +111,7 @@ new-schema and migration SQL resources.
 
 No GUI, host keyboard permission, microphone or real desktop input was started
 for this milestone. Native controls and on-screen chord/risk review are the next
-integration task. Independent specification and code-quality reviews remain
-pending; this evidence does not claim hardware compatibility.
+integration task. Independent specification and code-quality reviews approved this backend milestone; this evidence does not claim hardware compatibility.
 
 
 Task 2c quality-review follow-up reproduced and corrected stale-controller
@@ -123,3 +122,5 @@ returned catalogue. Reset now revokes/disarms before any database reset and
 preserves old configuration safely on storage failure. These three new tests
 were observed RED before the corrections; the complete suite passes **171 tests**,
 with Ruff and the isolated Gio protocol check passing again.
+
+Task 2c passed independent specification and code-quality reviews. Final backend verification: 171 tests, Ruff, and isolated real-Gio protocol tests pass. User-customized voice phrases and validated single-chord actions use a transactional SQLite v1→v2 migration that preserves every existing preference. The desktop GUI is the next milestone.
