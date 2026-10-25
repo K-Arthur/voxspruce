@@ -177,6 +177,68 @@ class RemoteTests(unittest.TestCase):
         )
         self.assertEqual(done, [None])
 
+    def test_custom_reviewed_chord_executes_and_portal_rejects_malformed_plans(self):
+        from dataclasses import replace
+
+        self.grant()
+        action = PendingAction(
+            "a",
+            ActionKind.COMMAND,
+            "custom-save",
+            Risk.HIGH,
+            0,
+            30,
+            key_chord="Ctrl+Super+S",
+        )
+        done = []
+        self.remote.execute(action, done.append)
+        self.assertEqual(done, [None])
+        self.assertEqual(
+            [entry[1:] for entry in self.transport.keys],
+            [
+                (0xFFE3, 1),
+                (0xFFEB, 1),
+                (ord("s"), 1),
+                (ord("s"), 0),
+                (0xFFEB, 0),
+                (0xFFE3, 0),
+            ],
+        )
+        for chord in ("Ctrl+S;rm", "Ctrl+Ctrl+S", "XF86AudioMute", "Ctrl+S,Ctrl+T"):
+            self.transport.keys.clear()
+            self.remote.execute(replace(action, key_chord=chord), done.append)
+            self.assertIsNotNone(done[-1])
+            self.assertFalse(self.transport.keys)
+
+    def test_custom_chord_releases_every_pressed_key_on_failure_and_cancellation(self):
+        self.grant()
+        action = PendingAction(
+            "a", ActionKind.COMMAND, "save", Risk.HIGH, 0, 30, key_chord="Ctrl+Alt+S"
+        )
+        self.transport.fail_key = (ord("s"), 1)
+        done = []
+        self.remote.execute(action, done.append)
+        self.assertIsNotNone(done[-1])
+        self.assertEqual(
+            [entry[1:] for entry in self.transport.keys][-3:],
+            [(ord("s"), 0), (0xFFE9, 0), (0xFFE3, 0)],
+        )
+        self.transport.keys.clear()
+        self.transport.fail_key = None
+        original = self.transport.notify_key
+
+        def cancel_after_press(session, symbol, state):
+            original(session, symbol, state)
+            if state == 1:
+                self.remote.cancel_input()
+
+        self.transport.notify_key = cancel_after_press
+        self.remote.execute(action, done.append)
+        self.assertIsNotNone(done[-1])
+        self.assertEqual(
+            [entry[1:] for entry in self.transport.keys], [(0xFFE3, 1), (0xFFE3, 0)]
+        )
+
     def test_session_closed_revokes_permission(self):
         self.grant()
         next(iter(self.transport.signals.values()))[3](())

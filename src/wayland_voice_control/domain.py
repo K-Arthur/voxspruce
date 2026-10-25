@@ -33,6 +33,7 @@ class State(str, Enum):
     RECORDING = "recording"
     PROCESSING = "processing"
     REVIEWING = "reviewing"
+    EDITING = "editing"
     AWAITING_SECOND_CONFIRMATION = "awaiting_second_confirmation"
     ARMED = "armed"
     EXECUTING = "executing"
@@ -47,6 +48,10 @@ class PendingAction:
     risk: Risk
     created_at: float
     expires_at: float
+    key_chord: str | None = None
+    phrase: str = ""
+    description: str = ""
+    custom: bool = False
 
 
 def validate_dictation(text: str) -> str:
@@ -90,6 +95,10 @@ class Workflow:
         self._clock = clock
         self._id_factory = id_factory or (lambda: uuid4().hex)
         self._issued_ids: set[str] = set()
+        from .commands import COMMANDS
+
+        self._catalogue = COMMANDS
+        self._edit_token: str | None = None
         self._permission = False
         self._microphone_consent = False
         self._state = State.IDLE
@@ -159,6 +168,37 @@ class Workflow:
         self._state = State.REVIEWING
         return action
 
+    def set_custom_shortcuts(self, custom) -> None:
+        from .commands import command_catalogue
+
+        catalogue = command_catalogue(custom)
+        self.cancel()
+        self._catalogue = catalogue
+
+    def begin_edit(self, action_id: str) -> str:
+        self._require_pending(
+            action_id, State.REVIEWING, State.AWAITING_SECOND_CONFIRMATION, State.ARMED
+        )
+        token = self._new_id()
+        self._pending = None
+        self._edit_token = token
+        self._state = State.EDITING
+        return token
+
+    def finish_edit(self, edit_token: str, text: str) -> PendingAction:
+        self._require_gates()
+        if self._edit_token is None or edit_token != self._edit_token:
+            raise DomainError(
+                "Stale edit identity. Continue editing the current draft."
+            )
+        self._require_state(State.EDITING)
+        # Invalid intermediate buffers stay editable, with nothing executable.
+        action = self._make_action(text)
+        self._pending = action
+        self._edit_token = None
+        self._state = State.REVIEWING
+        return action
+
     def edit_pending(self, action_id: str, text: str) -> PendingAction:
         self._require_pending(
             action_id, State.REVIEWING, State.AWAITING_SECOND_CONFIRMATION, State.ARMED
@@ -201,6 +241,7 @@ class Workflow:
         self.cancel()
 
     def cancel(self) -> None:
+        self._edit_token = None
         self._pending = None
         self._recording_id = None
         self._mode = None
@@ -263,12 +304,24 @@ class Workflow:
         return identity
 
     def _make_action(self, text: str) -> PendingAction:
+        command = None
         if self._mode is Mode.DICTATION:
             kind, payload, risk = ActionKind.TEXT, validate_dictation(text), Risk.NORMAL
         else:
             from .commands import match_command
 
-            command = match_command(text)
+            command = match_command(text, self._catalogue)
             kind, payload, risk = ActionKind.COMMAND, command.id, command.risk
         now = self._clock()
-        return PendingAction(self._new_id(), kind, payload, risk, now, now + self._ttl)
+        return PendingAction(
+            self._new_id(),
+            kind,
+            payload,
+            risk,
+            now,
+            now + self._ttl,
+            command.key_chord if command else None,
+            command.phrase if command else "",
+            command.description if command else "",
+            command.custom if command else False,
+        )

@@ -9,21 +9,15 @@ import threading
 from typing import ClassVar
 from uuid import uuid4
 
+from .commands import COMMANDS, parse_key_chord
 from .domain import ActionKind
 from .transport import SESSION, PortalError
 
 REMOTE = "org.freedesktop.portal.RemoteDesktop"
 SHORTCUTS = "org.freedesktop.portal.GlobalShortcuts"
 CHORDS = {
-    "next_field": (0xFF09,),
-    "previous_field": (0xFFE1, 0xFF09),
-    "copy": (0xFFE3, ord("c")),
-    "paste": (0xFFE3, ord("v")),
-    "undo": (0xFFE3, ord("z")),
-    "select_all": (0xFFE3, ord("a")),
-    "press_enter": (0xFF0D,),
-    "close_window": (0xFFE9, 0xFFC1),
-    "delete_selection": (0xFFFF,),
+    identity: parse_key_chord(command.key_chord)[1]
+    for identity, command in COMMANDS.items()
 }
 
 
@@ -153,7 +147,13 @@ class RemoteDesktop:
                 chords = (
                     [(keysym(char),) for char in action.payload]
                     if action.kind is ActionKind.TEXT
-                    else [CHORDS[action.payload]]
+                    else [
+                        parse_key_chord(
+                            action.key_chord
+                            if action.key_chord is not None
+                            else COMMANDS[action.payload].key_chord
+                        )[1]
+                    ]
                 )
                 for chord in chords:
                     pressed = []
