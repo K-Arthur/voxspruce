@@ -75,7 +75,7 @@ def service():
             )
         invocation.return_value(GLib.Variant("()", ()))
 
-    def register_helper():
+    def register_helper(_application):
         from gi.repository import Gio
 
         interface = Gio.DBusNodeInfo.new_for_xml(
@@ -89,9 +89,10 @@ def service():
         app.get_dbus_connection().register_object(
             "/WidgetTest", interface, helper, None, None
         )
-        return False
 
-    GLib.idle_add(register_helper)
+    # Controls1 becomes available during startup. Register the test-only helper
+    # in the same startup emission before any D-Bus method dispatch can race it.
+    app.connect_after("startup", register_helper)
     raise SystemExit(app.run(["widget-protocol-test", "--background"]))
 
 

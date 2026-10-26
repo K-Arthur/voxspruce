@@ -9,12 +9,17 @@ TestCase {
     Widget.ControlBridge { id: bridge }
     Component { id: observerFactory; Widget.ControlBridge {} }
     function helper(method) {
-        var done = false, failed = false
-        DBus.SessionBus.asyncCall({service: bridge.service, path: "/WidgetTest",
+        var target = bridge.owner
+        verify(target.length > 0, "test helper requires the current unique service owner")
+        var done = false, failure = ""
+        DBus.SessionBus.asyncCall({service: target, path: "/WidgetTest",
             iface: "io.github.wayland_voice_control.WidgetTest1", member: method, signature: "", arguments: []},
-            function() { done = true }, function() { failed = true; done = true })
+            function() { done = true }, function(reply) {
+                failure = reply.error.name + ": " + reply.error.message
+                done = true
+            })
         tryVerify(function() { return done }, 5000)
-        verify(!failed, "test helper " + method + " failed")
+        verify(failure.length === 0, "test helper " + method + " for " + target + " (current " + bridge.owner + ") failed: " + failure)
     }
     function invoke(method) {
         bridge.invoke(method)
