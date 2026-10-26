@@ -476,4 +476,8 @@ checks that full content and its privacy boundary instead of expecting a name.
 The complete Practice accessibility workflow passes in that Ubuntu runtime.
 The provisional explicit-status-name change was reverted after this evidence;
 it did not solve the compatibility issue and is not part of the final source.
-Public Ubuntu CI still provides the distribution/build gate before integration.
+Public Ubuntu CI passed every stage for `0a1a809`, including the actual AT-SPI
+workflow, private portal protocol, native widgets, distributions and installed
+entry-point checks ([run 40277407475](https://github.com/K-Arthur/wayland-voice-control/actions/runs/40277407475)).
+This closes that software portability gate, not the manual GNOME/microphone/Orca
+or intended-user release matrix.

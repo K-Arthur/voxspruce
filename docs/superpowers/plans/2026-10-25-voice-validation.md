@@ -33,3 +33,12 @@ headings and the native GTK GROUP-role assertion remain required. Also assign
 semantic roles using instance constructor properties, avoiding dependence on late
 class-default setters. The fresh-process native regression and actual AT-SPI
 workflow check cover these initialization and transport boundaries.
+
+Final software verification: specification and quality reviews approved
+`0a1a809`; complete native discovery passed 250 tests with no skips using the
+existing optional speech fixtures. Actual AT-SPI passed on the host and isolated
+Ubuntu runtime, and public Ubuntu CI passed all stages in run 40277407475.
+Private Gio portal protocol, native QML (21 cases), GTK/widget protocol (3 cases),
+visual status wrapping, static checks and builds passed. Integration into main
+is explicitly authorized; physical speech/compositor/Orca/user validation remains
+outside these software results.
