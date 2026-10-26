@@ -99,7 +99,7 @@ Item {
                           if (generation !== epoch) return
                           setPending(method, false)
                           if (reply.value !== true) failure()
-                          else refresh()
+                          else if (method !== "Quit") refresh()
                       }, function() {
                           if (generation !== epoch) return
                           setPending(method, false); failure()

@@ -32,6 +32,14 @@ TestCase {
         compare(bridge.state, "recording")
     }
     function test_absentDoesNotActivate() { compare(fakeBus.calls.length, 0); verify(!bridge.canStart) }
+    function test_successfulQuitDoesNotReadDisappearingService() {
+        connectService()
+        bridge.invoke("Quit")
+        compare(fakeBus.calls.length, 2)
+        fakeBus.calls[1].resolve({value: true})
+        compare(fakeBus.calls.length, 2)
+        compare(bridge.errorText, "")
+    }
     function test_methodsAndDuplicates() {
         connectService(); bridge.invoke("StartRecording"); bridge.invoke("StartRecording")
         compare(fakeBus.calls.length, 2)
