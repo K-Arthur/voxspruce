@@ -20,7 +20,7 @@ explicit user action and Stop cancels it.
 
 | Area | Automated checks | Manual evidence still required |
 | --- | --- | --- |
-| Orca speech and braille | GTK accessibility test backend checks roles, labels, group/heading hierarchy, status role and transcript-free announcement payloads | In an actual GNOME Wayland session, browse all three views by headings, landmarks/groups and controls; complete setup, edit/re-review, custom shortcut configuration, cancellation and stop. Repeat with speech and refreshable braille if available. Record Orca/GTK versions and issues. |
+| Orca speech and braille | GTK accessibility test backend checks roles, labels, group/heading hierarchy, status role and transcript-free announcement payloads; the private AT-SPI check exercises named controls and the Practice review/edit/custom-shortcut workflow through the actual accessibility wire | In an actual GNOME Wayland session, browse all three views by headings, landmarks/groups and controls; complete setup, edit/re-review, custom shortcut configuration, cancellation and stop. Repeat with speech and refreshable braille if available. Record Orca/GTK versions and issues. |
 | Keyboard and switch access | Native widget tests verify actionable roles; XTest drives the start/stop control through real Space key events under Xvfb | Complete every task with keyboard only, then with switch-scanning assistive software available on the tested distribution. Confirm visible focus, logical order, no trap, no timing-dependent activation and emergency stop reachability. |
 | Low vision and color | Compact/default screenshot review; native system theme and text scaling; labels and status text supplement color | Test system text scaling at 200% and 400%, high-contrast theme, light/dark, compact windows and focus visibility on GNOME and KDE. Check focus/disabled/error states and confirm no clipping or color-only information. |
 | Motor access | Both hold and click-to-start/stop paths are automated; local toggle capture cancels on focus loss and on pending-start cancellation | With disabled users, assess the reachability/effort of starting, stopping, editing and confirming. Try keyboard, switch access, dwell/alternate pointer, and user-configured global push-to-talk. Confirm the duration cap and focus behavior do not prevent task completion. |
@@ -36,11 +36,12 @@ smoke test is not evidence for all disabled users.
 ## Claim boundary
 
 Automated GTK accessibility tests establish that the app describes selected
-widgets through GTK's test backend. They do not prove correct AT-SPI transport,
-Orca output, braille quality, switch scanning, speech accuracy for a person, or
-usability. The local development environment currently has no Orca executable,
-and its isolated Xvfb session cannot connect to the desktop's AT-SPI registry;
-the manual Orca matrix is therefore open.
+widgets through GTK's test backend. The separate isolated AT-SPI integration
+check verifies actual transport and selected accessible Practice actions using
+synthetic text. Neither establishes Orca output, braille quality, switch scanning,
+speech accuracy for a person, or usability. The local environment has no Orca
+executable. The check uses its own registry rather than the user's desktop
+registry; the manual Orca and intended-user matrix remains open.
 
 Do not claim that the app is "better than TalkBack" or "optimized for disabled
 people" from the current evidence. A defensible future statement should list the

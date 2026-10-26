@@ -23,7 +23,19 @@ assertions about programmatic names without requiring an accessibility bus.
 WVC_GTK_TESTS=1 GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=test GIO_USE_VFS=local \
   dbus-run-session -- xvfb-run -a .venv/bin/python -m unittest tests.test_ui_gtk -v
 PYTHONPATH=src .venv/bin/python scripts/check-portal-protocol.py
+PYTHONPATH=src .venv/bin/python scripts/check-accessibility.py
 ```
+
+The separate `check-accessibility.py` runs real AT-SPI transport and native
+Practice actions, including edit/re-review, simulated dictation, custom shortcut
+creation/two-stage approval/cancellation, Setup names/default consent and Quit.
+It needs the distribution AT-SPI registry and GI typelib (`at-spi2-core` and
+`gir1.2-atspi-2.0` on Ubuntu). It creates an activation-free private D-Bus session,
+starts its own registry, points GTK/libatspi at that bus and uses Xvfb plus private
+XDG/settings directories. A 60-second process-group limit bounds failures. It
+prints no synthetic transcript, uses no host accessibility tree, and performs no
+physical keyboard/microphone or Orca test. CI runs it independently of
+`GTK_A11Y=test`.
 
 GTK tests are opt-in during pure discovery and run explicitly in CI. Optional
 installed-Vosk/native diagnostic cases skip if their engine/fixture is absent;

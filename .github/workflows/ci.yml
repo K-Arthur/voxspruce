@@ -12,7 +12,7 @@ jobs:
       - name: Native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-venv python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb dbus-x11 libxtst6
+          sudo apt-get install -y python3-venv python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb dbus-x11 libxtst6 at-spi2-core gir1.2-atspi-2.0
           python3 -m venv --system-site-packages .venv
           .venv/bin/python -m pip install -e . build ruff 'setuptools>=77' 'packaging>=24.2' wheel
       - name: Pure tests and static checks
@@ -28,6 +28,8 @@ jobs:
           GTK_A11Y: test
           GIO_USE_VFS: local
         run: dbus-run-session -- xvfb-run -a .venv/bin/python -m unittest tests.test_ui_gtk tests.test_app -v
+      - name: Actual AT-SPI Practice workflow on a private bus
+        run: .venv/bin/python scripts/check-accessibility.py
       - name: Actual Gio wire against private fake portal
         run: .venv/bin/python scripts/check-portal-protocol.py
       - name: Build and inspect installed entry point
