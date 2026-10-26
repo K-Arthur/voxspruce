@@ -279,6 +279,33 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(self.controller.snapshot.state, State.REVIEWING)
         self.assertFalse(self.remote.actions)
 
+    def test_global_release_never_finishes_capture_started_by_another_source(self):
+        self.assertTrue(self.controller.start_recording())
+        self.audio.callbacks["on_activity"]("recording")
+        self.controller.shortcut_event("hold_to_talk", True)
+        self.controller.shortcut_event("hold_to_talk", False)
+        self.assertEqual(self.controller.snapshot.state, State.RECORDING)
+        self.controller.cancel()
+        self.controller.shortcut_event("hold_to_talk", True)
+        self.controller.shortcut_event("hold_to_talk", True)  # repeated key-down
+        self.controller.shortcut_event("hold_to_talk", False)
+        self.assertEqual(self.controller.snapshot.state, State.PROCESSING)
+
+    def test_global_ownership_is_cleared_after_duration_cap_and_cancel(self):
+        for finish in (
+            lambda: self.audio.callbacks["on_result"]("capped"),
+            self.controller.cancel,
+        ):
+            self.controller.shortcut_event("hold_to_talk", True)
+            self.audio.callbacks["on_activity"]("recording")
+            finish()
+            self.controller.cancel()
+            self.assertTrue(self.controller.start_recording())
+            self.audio.callbacks["on_activity"]("recording")
+            self.controller.shortcut_event("hold_to_talk", False)
+            self.assertEqual(self.controller.snapshot.state, State.RECORDING)
+            self.controller.cancel()
+
     def test_shortcut_events_use_selected_mode_and_never_second_confirm(self):
         self.controller.set_mode(Mode.COMMANDS)
         self.controller.shortcut_event("hold_to_talk", True)

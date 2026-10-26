@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import subprocess
 import sys
 import types
 import unittest
@@ -11,12 +12,27 @@ from wayland_voice_control.__main__ import main
 
 class CliTests(unittest.TestCase):
     def test_help_without_loading_gtk_or_app(self):
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit) as exit:
-            main(["--help"])
-        self.assertEqual(exit.exception.code, 0)
-        self.assertIn("doctor", output.getvalue())
-        self.assertNotIn("wayland_voice_control.app", sys.modules)
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                """
+import sys
+from wayland_voice_control.__main__ import main
+try:
+    main(["--help"])
+except SystemExit as error:
+    assert error.code == 0
+assert "wayland_voice_control.app" not in sys.modules
+assert "gi" not in sys.modules
+""",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("doctor", result.stdout)
 
     def test_commands_shows_risks_and_exact_phrases(self):
         output = io.StringIO()

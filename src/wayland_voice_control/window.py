@@ -174,6 +174,10 @@ class VoiceWindow(Adw.ApplicationWindow):
             "Stop, discard content and revoke live grants"
         )
         header.pack_end(self.stop_button)
+        self.quit_button = button("Quit", self.quit_action)
+        self.quit_button.set_size_request(64, 44)
+        self.quit_button.get_child().set_wrap(False)
+        header.pack_end(self.quit_button)
         root.append(header)
         self.stack = Gtk.Stack()
         self.stack.set_vexpand(True)
@@ -369,6 +373,14 @@ class VoiceWindow(Adw.ApplicationWindow):
         self.new_custom()
 
     def _setup(self, parent):
+        resident = section(
+            parent,
+            "Availability",
+            "This option applies only to the current session. Quit stops all work and revokes access.",
+        )
+        self.keep_available = checkbox(label="Keep available when window closes")
+        self.keep_available.set_size_request(-1, 44)
+        resident.append(self.keep_available)
         model = section(
             parent,
             "1 · Prepare an offline model",
@@ -557,6 +569,7 @@ class VoiceWindow(Adw.ApplicationWindow):
             new = self.controller_factory(practice=True, store=self.store)
             self.controller = new
             self.unsubscribe = new.subscribe(self.render)
+            self._controller_changed()
             self.status.set_text(
                 "Live desktop connection unavailable. Check the session bus and run doctor; Practice is available."
             )
@@ -566,10 +579,16 @@ class VoiceWindow(Adw.ApplicationWindow):
             Mode.COMMANDS if self.command_mode.get_active() else Mode.DICTATION
         )
         self.unsubscribe = new.subscribe(self.render)
+        self._controller_changed()
         if self._settings_dirty:
             self._pause_unsaved_setup()
         else:
             self.load_settings()
+
+    def _controller_changed(self):
+        application = self.get_application()
+        if application and hasattr(application, "controller_changed"):
+            application.controller_changed()
 
     def _command_changed(self, *_):
         self._held = False
@@ -611,9 +630,7 @@ class VoiceWindow(Adw.ApplicationWindow):
         if snapshot.state is State.IDLE:
             if can_capture(snapshot):
                 self._stop_reader()
-                self._toggle_capture_started = bool(
-                    self.controller.start_recording()
-                )
+                self._toggle_capture_started = bool(self.controller.start_recording())
         elif snapshot.state is State.RECORDING:
             self._held = False
             self._toggle_capture_started = False
@@ -1000,9 +1017,7 @@ class VoiceWindow(Adw.ApplicationWindow):
                 announce = getattr(self.status, "announce", None)
                 if callable(announce):
                     try:
-                        announce(
-                            status_text, Gtk.AccessibleAnnouncementPriority.MEDIUM
-                        )
+                        announce(status_text, Gtk.AccessibleAnnouncementPriority.MEDIUM)
                     except (TypeError, RuntimeError):
                         # Older GTK versions and inactive AT bridges may not
                         # implement announcements; the status role/text remain.
@@ -1026,6 +1041,7 @@ class VoiceWindow(Adw.ApplicationWindow):
                 "hold_to_talk": "Hold to talk",
                 "confirm": "Confirm reviewed action",
                 "cancel": "Cancel action",
+                "show_controls": "Show controls",
             }
             binding_header = (
                 "Granted bindings and local fallbacks:"
@@ -1158,6 +1174,17 @@ class VoiceWindow(Adw.ApplicationWindow):
             self._chooser.destroy()
             self._chooser = None
 
+    def quit_action(self):
+        application = self.get_application()
+        if application and hasattr(application, "quit_controls"):
+            application.quit_controls()
+        else:
+            self.shutdown()
+            self.close()
+
     def _close(self, *_):
+        application = self.get_application()
+        if application and hasattr(application, "close_controls"):
+            return application.close_controls()
         self.shutdown()
         return False

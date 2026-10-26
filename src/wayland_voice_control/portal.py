@@ -195,6 +195,7 @@ class GlobalShortcuts:
         "hold_to_talk": ("Hold to talk", "CTRL+ALT+space"),
         "confirm": ("Confirm reviewed action", "CTRL+ALT+Return"),
         "cancel": ("Cancel action", "CTRL+ALT+Escape"),
+        "show_controls": ("Show controls", "CTRL+ALT+v"),
     }
 
     def __init__(self, transport, on_event, *, on_closed=None):

@@ -27,6 +27,18 @@ class GuiEntryTests(unittest.TestCase):
             received, [{"settings_path": Path("/tmp/private/settings.db")}]
         )
 
+    def test_background_option_is_forwarded_explicitly(self):
+        received = []
+        app = types.ModuleType("wayland_voice_control.app")
+        app.main = lambda **kwargs: received.append(kwargs) or 0
+        with patch.dict(sys.modules, {"wayland_voice_control.app": app}):
+            try:
+                result = main(["gui", "--background"])
+            except SystemExit:
+                result = -1
+        self.assertEqual(result, 0)
+        self.assertEqual(received, [{"settings_path": None, "background": True}])
+
     def test_help_explains_safe_gui_start(self):
         output = io.StringIO()
         with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):

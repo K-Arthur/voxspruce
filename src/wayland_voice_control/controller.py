@@ -97,6 +97,7 @@ class Controller:
         self._timer = None
         self._deadline = None
         self._recording_id = None
+        self._global_capture_started = False
         self._activity = "idle"
         self._draft = ""
         self._model_readiness = "idle"
@@ -172,6 +173,8 @@ class Controller:
         if status is not None:
             self._status = status
         snapshot = self.snapshot
+        if snapshot.state is not State.RECORDING:
+            self._global_capture_started = False
         for callback in tuple(self._observers):
             callback(snapshot)
 
@@ -240,8 +243,16 @@ class Controller:
 
     def shortcut_event(self, name, active):
         self._assert_thread()
-        if name == "hold_to_talk":
-            self.start_recording(self.mode) if active else self.finish_recording()
+        if name == "show_controls" and not active:
+            callback = getattr(self, "on_show_controls", None)
+            if callback:
+                callback()
+        elif name == "hold_to_talk":
+            if active and not self._global_capture_started:
+                self._global_capture_started = bool(self.start_recording(self.mode))
+            elif not active and self._global_capture_started:
+                self._global_capture_started = False
+                self.finish_recording()
         elif not active and name == "cancel":
             self.cancel()
         elif not active and name == "confirm" and self._workflow.pending:
@@ -296,9 +307,7 @@ class Controller:
             )
             return False
         if self._model_readiness != "ready":
-            self._publish(
-                "Prepare the local speech model in Setup before recording."
-            )
+            self._publish("Prepare the local speech model in Setup before recording.")
             return False
         try:
             recording_id = self._workflow.begin_recording(

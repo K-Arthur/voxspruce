@@ -20,6 +20,11 @@ def main(argv=None):
     gui.add_argument(
         "--settings", type=Path, help="Use a specific private settings database"
     )
+    gui.add_argument(
+        "--background",
+        action="store_true",
+        help="Keep Practice controls available without showing a window",
+    )
     doctor = subparsers.add_parser(
         "doctor", help="Read-only local capability diagnostics"
     )
@@ -64,7 +69,10 @@ def main(argv=None):
     from .app import main as app_main
 
     return (
-        app_main(settings_path=arguments.settings)
+        app_main(
+            settings_path=arguments.settings,
+            **({"background": True} if arguments.background else {}),
+        )
         if arguments.command == "gui"
         else app_main()
     )
