@@ -46,8 +46,9 @@ normal recognition and review then run offline.
   may interpret pasted content or an approved key unexpectedly.
 - An input failure can leave a partial insertion. The app reports failure and
   never automatically retries; inspect the destination before trying again.
-- Push-to-talk requires a held control or approved shortcut. There is no wake
-  word, always-listening mode or universal hands-free access claim.
+- Capture offers both a held push-to-talk control and an explicit start/stop
+  control. There is no wake word, always-listening mode or universal hands-free
+  access claim.
 - Automated native widget tests do not establish Orca usability or accessibility
   standards compliance. Testing with intended voice-input users remains open.
 

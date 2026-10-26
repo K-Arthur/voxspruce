@@ -299,6 +299,7 @@ class NativeWindowTests(unittest.TestCase):
             self.window.custom_description,
             self.window.custom_enabled,
             self.window.practice_entry,
+            self.window.toggle_capture_button,
         ):
             with self.subTest(widget=widget):
                 self.assertTrue(
@@ -306,6 +307,87 @@ class NativeWindowTests(unittest.TestCase):
                         widget, Gtk.AccessibleProperty.LABEL
                     )
                 )
+
+    def test_status_is_announced_to_screen_readers_without_reading_transcript(self):
+        from gi.repository import Gtk
+
+        self.assertEqual(
+            self.window.status.get_accessible_role(), Gtk.AccessibleRole.STATUS
+        )
+        with patch.object(Gtk.Accessible, "announce") as announce:
+            self.window.practice_entry.set_text("private transcript")
+            self.window.review_practice()
+            self.assertGreater(announce.call_count, 0)
+            previous_count = announce.call_count
+            self.window.render(self.window.controller.snapshot)
+            self.assertEqual(announce.call_count, previous_count)
+            spoken_status = " ".join(call.args[0] for call in announce.call_args_list)
+            self.assertNotIn("private transcript", spoken_status)
+
+    def test_live_click_toggle_can_start_and_stop_without_holding(self):
+        from dataclasses import replace
+
+        self.assertFalse(self.window.toggle_capture_button.get_visible())
+        self.window.practice_switch.set_active(False)
+        controller = self.window.controller
+        controller._model_readiness = "ready"
+        controller.settings = replace(controller.settings, microphone_consent=True)
+        controller._workflow.set_microphone_consent(True)
+        controller.connect()
+        controller.remote.grant()
+        self.assertTrue(self.window.toggle_capture_button.get_visible())
+        self.assertTrue(self.window.toggle_capture_button.get_sensitive())
+
+        self.window.toggle_capture_button.emit("clicked")
+        self.assertEqual(controller.snapshot.state, State.RECORDING)
+        self.assertIn("Cancel", self.window.toggle_capture_button.get_label())
+        controller.audio.callbacks["on_activity"]("recording")
+        self.assertIn("Stop recording", self.window.toggle_capture_button.get_label())
+        self.assertTrue(self.window.toggle_capture_button.get_sensitive())
+
+        self.window.toggle_capture_button.emit("clicked")
+        self.assertEqual(controller.snapshot.state, State.PROCESSING)
+        self.assertFalse(self.window.toggle_capture_button.get_sensitive())
+        controller.audio.callbacks["on_activity"]("processing")
+        controller.audio.callbacks["on_result"]("reviewed words")
+        self.assertEqual(controller.snapshot.state, State.REVIEWING)
+        self.assertFalse(self.window.toggle_capture_button.get_sensitive())
+
+    def test_live_click_toggle_cancels_if_stopped_before_recording_starts(self):
+        from dataclasses import replace
+
+        self.window.practice_switch.set_active(False)
+        controller = self.window.controller
+        controller._model_readiness = "ready"
+        controller.settings = replace(controller.settings, microphone_consent=True)
+        controller._workflow.set_microphone_consent(True)
+        controller.connect()
+        controller.remote.grant()
+
+        self.window.toggle_capture_button.emit("clicked")
+        self.assertEqual(controller.snapshot.microphone_activity, "loading")
+        self.window.toggle_capture_button.emit("clicked")
+        self.assertEqual(controller.snapshot.state, State.IDLE)
+        self.assertGreater(controller.audio.cancelled, 0)
+
+    def test_live_click_toggle_cancels_when_window_loses_focus(self):
+        from dataclasses import replace
+
+        self.window.practice_switch.set_active(False)
+        controller = self.window.controller
+        controller._model_readiness = "ready"
+        controller.settings = replace(controller.settings, microphone_consent=True)
+        controller._workflow.set_microphone_consent(True)
+        controller.connect()
+        controller.remote.grant()
+        self.window.toggle_capture_button.emit("clicked")
+        self.assertEqual(controller.snapshot.state, State.RECORDING)
+
+        with patch.object(self.window, "is_active", return_value=False):
+            self.window._active_changed()
+
+        self.assertEqual(controller.snapshot.state, State.IDLE)
+        self.assertGreater(controller.audio.cancelled, 0)
 
     def test_long_custom_phrases_do_not_force_wide_buttons(self):
         from gi.repository import Gtk

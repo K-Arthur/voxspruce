@@ -95,6 +95,7 @@ class VoiceWindow(Adw.ApplicationWindow):
         self._settings_dirty = False
         self._held = False
         self._hold_pressed = False
+        self._toggle_capture_started = False
         self._closed = False
         self._reviewed_id = None
         self._custom_id = None
@@ -103,6 +104,7 @@ class VoiceWindow(Adw.ApplicationWindow):
         self._reader_action_id = None
         self._reader_generation = 0
         self._chooser = None
+        self._last_announced_status = None
         Gtk.IconTheme.get_for_display(self.get_display()).add_search_path(
             str(files("wayland_voice_control").joinpath("resources/icons"))
         )
@@ -173,6 +175,8 @@ class VoiceWindow(Adw.ApplicationWindow):
         modes.append(self.readiness)
         self.status = label()
         self.status.add_css_class("heading")
+        if hasattr(Gtk.AccessibleRole, "STATUS"):
+            self.status.set_accessible_role(Gtk.AccessibleRole.STATUS)
         modes.append(self.status)
         self.practice_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         self.practice_entry = entry(
@@ -200,6 +204,16 @@ class VoiceWindow(Adw.ApplicationWindow):
         keys.connect("key-pressed", self._hold_key)
         self.hold_button.add_controller(keys)
         modes.append(self.hold_button)
+        self.toggle_capture_button = button(
+            "Start recording without holding", self.toggle_capture_action
+        )
+        self.toggle_capture_button.set_size_request(-1, 56)
+        modes.append(self.toggle_capture_button)
+        modes.append(
+            label(
+                "Tap once to start and again to finish. Leaving this window cancels capture; the duration cap also stops it."
+            )
+        )
         self.draft = label()
         self.draft.add_css_class("dim-label")
         modes.append(label("Live provisional draft · never approved or sent"))
@@ -342,11 +356,11 @@ class VoiceWindow(Adw.ApplicationWindow):
         consent = section(
             parent,
             "2 · Explicit microphone consent",
-            "Default off. Enabling consent permits only explicit held recording in Live mode. "
-            "Release ends recording; the configured duration cap also stops it.",
+            "Default off. Enabling consent permits recording only after you explicitly activate a capture control in Live mode. "
+            "Hold to talk, or start and stop with separate taps. The configured duration cap ends either mode.",
         )
         self.mic_consent = checkbox(
-            label="I allow microphone capture while holding to talk"
+            label="I allow microphone capture after I explicitly start it"
         )
         consent.append(self.mic_consent)
         self.focus_delay = Gtk.SpinButton.new_with_range(2, 10, 1)
@@ -444,6 +458,7 @@ class VoiceWindow(Adw.ApplicationWindow):
 
     def _pause_unsaved_setup(self):
         self._held = False
+        self._toggle_capture_started = False
         self.settings_status.set_text(
             "Unsaved Setup changes · live input paused. Save, prepare the model and reconnect explicitly."
         )
@@ -542,6 +557,27 @@ class VoiceWindow(Adw.ApplicationWindow):
             self.controller.finish_recording()
         self.render(self.controller.snapshot)
 
+    def toggle_capture_action(self):
+        """Start once and tap again to finish, for users who cannot hold a control."""
+        snapshot = self.controller.snapshot
+        if self._settings_dirty or snapshot.practice:
+            return
+        if snapshot.state is State.IDLE:
+            if can_capture(snapshot):
+                self._stop_reader()
+                self._toggle_capture_started = bool(
+                    self.controller.start_recording()
+                )
+        elif snapshot.state is State.RECORDING:
+            self._held = False
+            self._toggle_capture_started = False
+            if snapshot.microphone_activity == "recording":
+                self.controller.finish_recording()
+            else:
+                # A second activation while the recorder is starting cancels it;
+                # it must not create a short or unexpected capture after the tap.
+                self.controller.cancel()
+
     def _cancel_hold(self):
         if self._held:
             self._hold_pressed = False
@@ -575,6 +611,9 @@ class VoiceWindow(Adw.ApplicationWindow):
     def _active_changed(self, *_):
         if not self.is_active():
             self._cancel_hold()
+            if self._toggle_capture_started:
+                self._toggle_capture_started = False
+                self.controller.cancel()
             # Key-up may go to another top-level window. Abandon this window's
             # physical press ownership even if a duration cap already ended capture.
             self._hold_pressed = False
@@ -897,13 +936,31 @@ class VoiceWindow(Adw.ApplicationWindow):
             self.mode_status.set_text(
                 "Practice · microphone off · desktop input simulated only"
                 if snapshot.practice
-                else "Live · explicit held recording and reviewed desktop input"
+                else "Live · explicit recording and reviewed desktop input"
             )
-            self.status.set_text(
+            status_text = (
                 "Unsaved Setup changes · live input paused. Save before preparing or reconnecting."
                 if self._settings_dirty
                 else f"{snapshot.state.value.replace('_', ' ').capitalize()} · {snapshot.status}"
             )
+            self.status.set_text(status_text)
+            status_key = (
+                status_text,
+                snapshot.state,
+                snapshot.pending.id if snapshot.pending else None,
+            )
+            if status_key != self._last_announced_status:
+                self._last_announced_status = status_key
+                announce = getattr(self.status, "announce", None)
+                if callable(announce):
+                    try:
+                        announce(
+                            status_text, Gtk.AccessibleAnnouncementPriority.MEDIUM
+                        )
+                    except (TypeError, RuntimeError):
+                        # Older GTK versions and inactive AT bridges may not
+                        # implement announcements; the status role/text remain.
+                        pass
             self.readiness.set_text(
                 f"Model: {snapshot.model_readiness} · Microphone consent: {'on' if snapshot.microphone_consent else 'off'} · "
                 f"Keyboard grant: {'simulated' if snapshot.practice else ('granted' if snapshot.permission_granted else 'not granted')}\n"
@@ -928,6 +985,7 @@ class VoiceWindow(Adw.ApplicationWindow):
             )
             if snapshot.state is not State.RECORDING:
                 self._held = False
+                self._toggle_capture_started = False
             self.hold_button.set_sensitive(
                 not self._settings_dirty
                 and (can_capture(snapshot) or self._hold_pressed)
@@ -939,6 +997,25 @@ class VoiceWindow(Adw.ApplicationWindow):
                     "processing": "Processing locally · microphone off",
                     "idle": "Hold to talk · Space while focused",
                 }[snapshot.microphone_activity]
+            )
+            self.toggle_capture_button.set_visible(not snapshot.practice)
+            toggle_label = {
+                State.IDLE: "Start recording without holding",
+                State.RECORDING: (
+                    "Cancel starting recording"
+                    if snapshot.microphone_activity == "loading"
+                    else "Stop recording and review"
+                ),
+                State.PROCESSING: "Finishing recording",
+            }.get(snapshot.state, "Start recording without holding")
+            self.toggle_capture_button.set_label(toggle_label)
+            self.toggle_capture_button.update_property(
+                [Gtk.AccessibleProperty.LABEL], [toggle_label]
+            )
+            self.toggle_capture_button.set_sensitive(
+                not self._settings_dirty
+                and not snapshot.practice
+                and (can_capture(snapshot) or snapshot.state is State.RECORDING)
             )
             self.practice_box.set_visible(snapshot.practice)
             for widget in (

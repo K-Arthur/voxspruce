@@ -9,6 +9,8 @@ Native GTK4/libadwaita desktop application, using the user-invoked UI/UX Pro Max
 - Native symbolic icons, native keyboard focus and controls, selectable/wrapping help text, no color-only meaning.
 - Recording, processing, reviewing, countdown, executing, off and error must be distinct text states.
 - Emergency stop remains available in every state. Escape cancels; confirmation never shares the recording gesture.
+- Offer both hold-to-talk and explicit start/stop capture so users do not have to sustain a press; both remain consent-gated and duration-limited.
+- Announce material status changes to assistive technology without automatically speaking transcript text or repeating countdown ticks.
 - Local confirmation explicitly displays destination-selection countdown. Global confirmation acts from the user-selected target.
 - Optional practice mode uses its own preview and visibly identifies itself; never imply actual desktop control.
 - System light/dark preference and font scaling; no decorative animation. Compact width uses scrolling, never clipped actions.

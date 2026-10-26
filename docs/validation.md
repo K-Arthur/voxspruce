@@ -66,6 +66,25 @@ microphone or host portal was exercised.
 
 Independent paced benchmark recheck using the committed shared decoder: 8.308 seconds of audio, 1.881 seconds decoding (RTF 0.226), 407 ms maximum replay lag and 39 ms finalization. This confirms the benchmark is reproducible on this host, not a microphone-latency or recognition-accuracy claim. See [performance.md](performance.md) for all recorded runs, including slower bursts.
 
+## Accessibility controls and headless visual check
+
+GTK/Xvfb tests now exercise programmatic labels, a GTK status role with state
+announcements that omit transcript content, and the Live start/stop alternative
+for people who cannot sustain a press. The alternative cancels while microphone
+startup is pending, finishes with a second activation after recording starts,
+and cancels if the app loses focus. Both recording controls use the configured
+duration cap. These checks validate widget behavior and the announcement API;
+they do not establish usability with Orca or another assistive technology.
+
+The updated Live Voice view was visually checked under Xvfb at 780×820 and
+550×820. At the compact width, instructions wrap cleanly, the new start/stop
+control remains fully visible, and review content continues below in the
+scrollable view. Baseline default/compact enlarged-text captures are retained in
+the ignored development artifacts. Actual screen-reader output, high-contrast theme
+behavior, switch access, speech accessibility with disabled users, and usability
+with intended users remain open manual validation items. No broad claim that the
+app is optimized for disabled people or conforms to WCAG follows from these tests.
+
 
 ## Native diagnostic regression
 

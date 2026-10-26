@@ -1,6 +1,6 @@
 # Wayland Voice Control
 
-A native GTK4/libadwaita Linux app for offline, held voice input: speak, review
+A native GTK4/libadwaita Linux app for offline voice input: speak, review
 the complete result, then explicitly confirm dictation or one exact command.
 MIT licensed. Starts in **Practice**, which uses typed examples and simulated
 output; it constructs no microphone, desktop portal or live input adapter.
@@ -74,9 +74,11 @@ python3 -m venv --system-site-packages .venv
 5. Click **Request desktop keyboard access** and approve the desktop's keyboard
    dialog. Capability availability and a saved preference do not constitute a
    grant. Optionally request global shortcuts and read the actual returned bindings.
-6. Choose Dictation or Commands, then hold the talk button (or Space while it has
-   focus, or an approved global shortcut). A provisional draft appears while held;
-   it is never approved or sent. Release to finish and review the final result.
+6. Choose Dictation or Commands. Hold the talk button (or Space while it has
+   focus, or an approved global shortcut) to speak, or activate **Start recording
+   without holding** and tap **Stop recording and review** when finished. Both
+   modes are bounded by the configured duration cap. A provisional draft is
+   display-only; review the final result before any action.
 7. Check the literal text or the exact phrase/chord/description/risk. **Edit
    transcript** revokes approval before the editor becomes editable. **Re-review**
    creates a fresh action. Confirm once; every high-risk/custom action needs the
@@ -85,9 +87,9 @@ python3 -m venv --system-site-packages .venv
 
 Stop remains in the titlebar; Escape cancels. Stop, changing Practice/Live,
 settings changes and exit close live sessions. The microphone stops on release,
-cancel, focus loss of the local hold control or the duration cap. Cancel discards
-content; reconnecting never replays it. An input failure may leave partial text;
-it is reported and never automatically retried.
+the explicit stop control, cancel, loss of focus for a local capture, or the
+duration cap. Cancel discards content; reconnecting never replays it. An input
+failure may leave partial text; it is reported and never automatically retried.
 
 ## Commands and custom shortcuts
 

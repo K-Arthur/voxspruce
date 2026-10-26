@@ -8,7 +8,7 @@ Record date, distribution/version, GNOME Shell version, Wayland session, xdg-des
 
 ## Week-one input decision
 
-1. Start the application in default Practice with microphone consent disabled. It must neither construct live adapters nor record or present a permission dialog. Exercise a typed practice example and inspect simulated output. Switch to Live; select/save and explicitly prepare an extracted model. Enable mic consent only when ready for held speech.
+1. Start the application in default Practice with microphone consent disabled. It must neither construct live adapters nor record or present a permission dialog. Exercise a typed practice example and inspect simulated output. Switch to Live; select/save and explicitly prepare an extracted model. Enable mic consent only when ready for an explicit capture.
 2. In Live Setup, request keyboard access. Deny it. Confirm that all input remains blocked and retry is available.
 3. Request again. Grant keyboard access in the desktop dialog. Check that no screen-sharing source was requested and the app accurately reports granted permission.
 4. In Live Dictation mode, hold to speak `Wayland voice test 123.`, release, review the final transcript and confirm it. Select the editor during the visible countdown. Record exact output, duplication, missing characters, latency and whether any unexpected key is pressed.
@@ -27,6 +27,8 @@ Record date, distribution/version, GNOME Shell version, Wayland session, xdg-des
 - Press/hold and release; inspect actual PipeWire capture lifetime. Test very short holds, rapid repeats, lost focus, lost pointer grab, Escape, permission revoke and application quit.
 - While model preparation is idle/loading/error, neither local nor global hold may start capture. Prepare explicitly, then test release during microphone startup: capture must not start afterward. During processing, stop: a late transcript must not revive the session.
 - Hold past the configured duration cap; capture must stop, the recording indicator must clear, auto-repeat must not restart it, and a physical release followed by a new hold must work. Repeat after moving focus to another widget and another top-level window before release; refocusing the app must allow a new genuine press. If the recorder exits early or the microphone disappears, show a recoverable error.
+- Test the explicit start/stop control with mouse and keyboard/screen reader. It must start only after consent, cancel safely during startup, stop on a second activation, and stop at the same duration cap. Check that status announcements describe state changes without speaking the transcript automatically.
+- While using the explicit start/stop control, switch to another window during capture. Capture must cancel and the status must report the stopped state. This local-focus safety rule does not apply to an explicitly requested desktop global push-to-talk binding.
 - Disconnect the network after local dependency/model setup. Dictation and commands must work without outbound connections. No temporary audio files or transcript logs should appear.
 - Compare recognized text to intended speech using at least two accents and two microphones. Record failures, not only successful takes. Do not publish an accuracy percentage without a defined sample and scoring method.
 
@@ -40,7 +42,7 @@ Record date, distribution/version, GNOME Shell version, Wayland session, xdg-des
 
 ## Accessibility and portfolio evidence
 
-Test full navigation with keyboard only and with Orca, including setup, denial/retry, transcript editing, the two confirmation stages and emergency stop. Test large system fonts, light/dark themes, a compact window and reduced motion. Ask two or three voice-input users which commands matter and whether hold-to-talk is workable with their input devices.
+Test full navigation with keyboard only and with Orca, including setup, denial/retry, transcript editing, both capture controls, the two confirmation stages and emergency stop. Confirm status announcements are useful and do not read private transcript content without request. Test large system fonts, light/dark themes, a compact window and reduced motion. Ask two or three voice-input users which commands matter and whether hold-to-talk or start/stop capture works with their input devices.
 
 Capture a captioned demo with dictation, two commands, one recognition error, cancellation, and permission revocation. Obtain participant consent before recording. Store neither participant audio nor private transcripts in the repository. Publish the exact tested matrix and unresolved limits alongside the demo.
 
