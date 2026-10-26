@@ -24,3 +24,12 @@ usability remain distinct release gates.
    native tests, protocol checks, static checks and build; update documentation
    with exact evidence and unverified claims. Commit progressively, merge main
    and push as authorized.
+
+
+Follow-up from actual Ubuntu transport validation: compare numeric AT-SPI role
+IDs and preserve the distribution's documented GROUPING/PANEL mapping for named
+GTK groups. Ubuntu Noble intentionally exports PANEL for older Orca; exact names,
+headings and the native GTK GROUP-role assertion remain required. Also assign
+semantic roles using instance constructor properties, avoiding dependence on late
+class-default setters. The fresh-process native regression and actual AT-SPI
+workflow check cover these initialization and transport boundaries.

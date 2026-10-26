@@ -441,3 +441,27 @@ The shortcut-change status was visually checked in the rendered 560×820 native
 window; its instructions wrap without clipping and Stop/Quit remain visible.
 The delayed user report that windows opened/closed did not confirm the requested
 scratch-field text, so live insertion remains unverified.
+
+
+### Cross-distribution accessibility validation
+
+The first Ubuntu 24.04 actual AT-SPI run failed the section-group assertion.
+Comparing stable numeric roles retained the failure: the named section exported
+PANEL rather than GROUPING. Inspection of the exact official Ubuntu source
+package `gtk4_4.14.5+ds-0ubuntu0.10` established that this is intentional:
+`a11y-Fix-A11Y-groups.patch`, included in the patch series, maps GTK GROUP to
+AT-SPI PANEL so Noble's older Orca announces group labels correctly
+([Ubuntu bug 2119005](https://bugs.launchpad.net/ubuntu/+source/gtk4/+bug/2119005)).
+It was not evidence that the app had lost its semantic group. The actual-wire
+check now permits only these two documented group mappings, retaining exact
+section names/headings; native GTK checks still require GROUP.
+
+Commit `71a0fac` also removes reliance on post-construction class-default role
+setters by assigning each semantic widget's instance `accessible_role` property
+first during construction. A fresh-process regression was observed failing with
+a legacy class setter unable to update instances, then passing with constructor
+properties; ordinary labels/boxes retain their roles. This is initialization
+hardening, and did not itself resolve the Ubuntu mapping mismatch. Local native
+discovery passes 250 cases with 3 optional speech checks skipped in the default
+environment, and the actual local AT-SPI workflow passes. Ubuntu CI must confirm
+the complete cross-distribution transport workflow.

@@ -38,7 +38,12 @@ physical keyboard/microphone or Orca test. CI runs it independently of
 `GTK_A11Y=test`. It compares stable AT-SPI role enum IDs: GTK 4.14
 [returns ARIA-style role names](https://github.com/GNOME/gtk/blob/4.14.5/gtk/a11y/gtkatspicontext.c)
 while newer GTK returns different strings for some roles. Names and required
-semantic roles are still asserted; the check does not accept arbitrary roles.
+semantic roles are still asserted. Named section groups accept GROUPING or
+PANEL because Ubuntu Noble's
+[GTK compatibility patch](https://archive.ubuntu.com/ubuntu/pool/main/g/gtk4/gtk4_4.14.5+ds-0ubuntu0.10.debian.tar.xz)
+intentionally maps GTK GROUP to PANEL for its bundled older Orca. The exact name
+and heading remain required, and native GTK tests require GROUP itself. Other
+roles remain exact; the check does not accept arbitrary roles.
 
 GTK tests are opt-in during pure discovery and run explicitly in CI. Optional
 installed-Vosk/native diagnostic cases skip if their engine/fixture is absent;

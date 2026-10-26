@@ -37,13 +37,16 @@ def check():
     # GTK 4.14 returns ARIA role names ("group", "text box", "status")
     # while newer GTK uses AT-SPI names. The protocol's enum IDs are stable.
     roles = {
-        "button": Atspi.Role.PUSH_BUTTON,
-        "heading": Atspi.Role.HEADING,
-        "grouping": Atspi.Role.GROUPING,
-        "check box": Atspi.Role.CHECK_BOX,
-        "text": Atspi.Role.TEXT,
-        "label": Atspi.Role.LABEL,
-        "page tab": Atspi.Role.PAGE_TAB,
+        "button": (Atspi.Role.PUSH_BUTTON,),
+        "heading": (Atspi.Role.HEADING,),
+        # Ubuntu Noble backports GROUP -> PANEL for its older Orca. Native
+        # GTK tests still require GROUP; the wire requires this exact named
+        # section and its heading, with only these two supported mappings.
+        "grouping": (Atspi.Role.GROUPING, Atspi.Role.PANEL),
+        "check box": (Atspi.Role.CHECK_BOX,),
+        "text": (Atspi.Role.TEXT,),
+        "label": (Atspi.Role.LABEL,),
+        "page tab": (Atspi.Role.PAGE_TAB,),
     }
     context = GLib.MainContext.default()
 
@@ -159,7 +162,7 @@ def check():
                     (
                         node
                         for node in walk(root)
-                        if node.get_role() == roles[role] and node.get_name() == name
+                        if node.get_role() in roles[role] and node.get_name() == name
                     ),
                     None,
                 )
@@ -219,7 +222,9 @@ def check():
                 )
 
             require_node("Wayland Voice Control", "heading")
-            require_node("Speak, review, confirm", "grouping")
+            for section in ("Speak, review, confirm", "Review the complete action"):
+                require_node(section, "grouping")
+                require_node(section, "heading")
             for name in ("Quit", "Stop", "Confirm reviewed action"):
                 require_node(name, "button")
             require_node("Practice mode — simulate input only", "check box")
