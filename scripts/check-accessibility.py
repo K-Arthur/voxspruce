@@ -34,6 +34,17 @@ def check():
     from gi.repository import Atspi, Gio, GLib
 
     Atspi.set_timeout(1000, 1000)
+    # GTK 4.14 returns ARIA role names ("group", "text box", "status")
+    # while newer GTK uses AT-SPI names. The protocol's enum IDs are stable.
+    roles = {
+        "button": Atspi.Role.PUSH_BUTTON,
+        "heading": Atspi.Role.HEADING,
+        "grouping": Atspi.Role.GROUPING,
+        "check box": Atspi.Role.CHECK_BOX,
+        "text": Atspi.Role.TEXT,
+        "label": Atspi.Role.LABEL,
+        "page tab": Atspi.Role.PAGE_TAB,
+    }
     context = GLib.MainContext.default()
 
     def pump():
@@ -148,13 +159,31 @@ def check():
                     (
                         node
                         for node in walk(root)
-                        if node.get_role_name() == role and node.get_name() == name
+                        if node.get_role() == roles[role] and node.get_name() == name
                     ),
                     None,
                 )
 
             def require_node(name, role):
-                return wait(lambda: find(name, role), "Missing named AT-SPI control.")
+                try:
+                    return wait(
+                        lambda: find(name, role), "Missing named AT-SPI control."
+                    )
+                except AssertionError:
+                    # Roles/counts only: never print editor values or transcripts.
+                    from collections import Counter
+
+                    matching_roles = []
+                    counts = Counter()
+                    for node in walk(root):
+                        actual_role = node.get_role_name()
+                        counts[actual_role] += 1
+                        if node.get_name() == name:
+                            matching_roles.append(actual_role)
+                    raise AssertionError(
+                        f"Missing AT-SPI role {role}; matching roles {matching_roles}; "
+                        f"tree role counts {dict(counts)}"
+                    ) from None
 
             def state(node, wanted):
                 return node.get_state_set().contains(wanted)
@@ -183,7 +212,7 @@ def check():
                     (
                         node
                         for node in walk(root)
-                        if node.get_role_name() == "status bar"
+                        if node.get_role() == Atspi.Role.STATUS_BAR
                         and node.get_name().startswith(starts)
                     ),
                     None,
@@ -295,6 +324,7 @@ def isolated():
             GIO_USE_VFS="local",
             MESA_SHADER_CACHE_DISABLE="true",
             PYTHONPATH=str(ROOT / "src"),
+            WVC_A11Y_PRIVATE_BUS="1",
         )
         # An inherited host a11y address must never reach the isolated child.
         env.pop("AT_SPI_BUS_ADDRESS", None)
@@ -328,6 +358,8 @@ def isolated():
 
 if __name__ == "__main__":
     if "--isolated-child" in sys.argv:
+        if os.environ.get("WVC_A11Y_PRIVATE_BUS") != "1":
+            raise SystemExit("Run this check without internal arguments.")
         os.environ["AT_SPI_BUS_ADDRESS"] = os.environ["DBUS_SESSION_BUS_ADDRESS"]
         check()
     else:

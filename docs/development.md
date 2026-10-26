@@ -35,7 +35,10 @@ starts its own registry, points GTK/libatspi at that bus and uses Xvfb plus priv
 XDG/settings directories. A 60-second process-group limit bounds failures. It
 prints no synthetic transcript, uses no host accessibility tree, and performs no
 physical keyboard/microphone or Orca test. CI runs it independently of
-`GTK_A11Y=test`.
+`GTK_A11Y=test`. It compares stable AT-SPI role enum IDs: GTK 4.14
+[returns ARIA-style role names](https://github.com/GNOME/gtk/blob/4.14.5/gtk/a11y/gtkatspicontext.c)
+while newer GTK returns different strings for some roles. Names and required
+semantic roles are still asserted; the check does not accept arbitrary roles.
 
 GTK tests are opt-in during pure discovery and run explicitly in CI. Optional
 installed-Vosk/native diagnostic cases skip if their engine/fixture is absent;
