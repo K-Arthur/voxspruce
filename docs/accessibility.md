@@ -1,6 +1,6 @@
 # Accessibility target and verification
 
-Wayland Voice Control is a Linux desktop app, not a screen reader. Google's
+Voxspruce is a Linux desktop app, not a screen reader. Google's
 TalkBack is Android's built-in screen reader; it cannot be a direct comparator
 for a GTK application. The Linux target is a clear, dependable experience through
 GTK's AT-SPI accessibility tree, Orca speech and braille, keyboard navigation,

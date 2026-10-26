@@ -131,7 +131,7 @@ class VoiceWindow(Adw.ApplicationWindow):
     ):
         super().__init__(
             application=application,
-            title="Wayland Voice Control",
+            title="Voxspruce",
             default_width=780,
             default_height=820,
         )
@@ -171,7 +171,7 @@ class VoiceWindow(Adw.ApplicationWindow):
     def _build(self):
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         header = Adw.HeaderBar()
-        header.set_title_widget(AccessibleHeading("Wayland Voice Control", level=1))
+        header.set_title_widget(AccessibleHeading("Voxspruce", level=1))
         self.stop_button = button("Stop", self.stop_action)
         self.stop_button.set_icon_name("process-stop-symbolic")
         self.stop_button.set_label("Stop")

@@ -5,13 +5,19 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "wayland-voice-control"
 version = "0.1.0"
-description = "Offline, explicitly confirmed voice assistance for GNOME Wayland"
+description = "Voxspruce: experimental offline Linux voice input with explicit review, accessibility and privacy goals"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-classifiers = ["Operating System :: POSIX :: Linux", "Programming Language :: Python :: 3"]
+keywords = ["wayland", "linux", "voice-control", "dictation", "accessibility", "privacy", "offline"]
+classifiers = ["Development Status :: 3 - Alpha", "Operating System :: POSIX :: Linux", "Programming Language :: Python :: 3"]
 requires-python = ">=3.11"
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/K-Arthur/wayland-voice-control"
+Documentation = "https://github.com/K-Arthur/wayland-voice-control#readme"
+Issues = "https://github.com/K-Arthur/wayland-voice-control/issues"
 
 [project.scripts]
 wayland-voice-control = "wayland_voice_control.__main__:main"

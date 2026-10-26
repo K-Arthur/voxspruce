@@ -1,6 +1,6 @@
 # Architecture and end-to-end workflow
 
-Wayland Voice Control is a local desktop application. It has no web backend,
+Voxspruce is a local desktop application. It has no web backend,
 account service, cloud recognition, transcript database or command-generating LLM.
 The native UI, policy engine and operating-system adapters run in one Python
 application, with speech and input work moved off the GTK thread.

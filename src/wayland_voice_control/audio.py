@@ -48,8 +48,8 @@ def spawn_recorder():
             "--media-role=Accessibility",
             "--properties",
             (
-                '{"application.name":"Wayland Voice Control",'
-                '"media.name":"Voice Control microphone capture"}'
+                '{"application.name":"Voxspruce",'
+                '"media.name":"Voxspruce microphone capture"}'
             ),
             "--rate=16000",
             "--channels=1",

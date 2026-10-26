@@ -1,0 +1,36 @@
+name: Test report
+description: Share an early testing result, including partial or unsuccessful tests.
+title: "Test: "
+body:
+  - type: markdown
+    attributes:
+      value: "Participation is voluntary. Do not include recordings, transcripts, private paths, tokens, identifying device data, or a diagnosis. Please review logs and screenshots before posting. Report vulnerabilities [privately](https://github.com/K-Arthur/wayland-voice-control/security/advisories/new)."
+  - type: dropdown
+    id: mode
+    attributes:
+      label: What did you test?
+      options:
+        - Practice only
+        - Live microphone or recognition
+        - Live desktop permission or input
+        - Accessibility or assistive technology
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Distribution and version, desktop and version, Wayland or X11, app commit, and assistive technology if relevant and you wish to share it.
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What did you try, and what happened?
+      description: Include what worked, failed, was skipped, or could not be tested. Use a disposable target and synthetic text.
+    validations:
+      required: true
+  - type: textarea
+    id: grants
+    attributes:
+      label: Permissions and observations
+      description: If relevant, describe whether microphone consent and desktop portal access were actually granted, denied, revoked, or not requested.

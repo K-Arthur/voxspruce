@@ -243,7 +243,7 @@ class ResidentApplicationTests(unittest.TestCase):
                 self.spin(lambda: send.called)
                 make.assert_called_once_with("Voice action ready for review")
                 make.return_value.set_body.assert_called_once_with(
-                    "Open Wayland Voice Control to review the action."
+                    "Open Voxspruce to review the action."
                 )
         finally:
             self.client.call_sync(

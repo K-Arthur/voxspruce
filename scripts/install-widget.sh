@@ -43,5 +43,5 @@ services.mkdir(parents=True, exist_ok=True)
 target = services / (plugin + ".service")
 target.write_text(service)
 print("Installed widget and D-Bus activation:", target)
-print("Add Wayland Voice Control using Plasma's widget chooser when wanted.")
+print("Add Voxspruce using Plasma's widget chooser when wanted.")
 PY

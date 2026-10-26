@@ -15,8 +15,8 @@ class RecorderIntegrationTests(unittest.TestCase):
         self.assertIn("--media-category=Capture", command)
         self.assertIn("--media-role=Accessibility", command)
         properties = command[command.index("--properties") + 1]
-        self.assertIn('"application.name":"Wayland Voice Control"', properties)
-        self.assertIn('"media.name":"Voice Control microphone capture"', properties)
+        self.assertIn('"application.name":"Voxspruce"', properties)
+        self.assertIn('"media.name":"Voxspruce microphone capture"', properties)
         self.assertIs(popen.call_args.kwargs["shell"], False)
 
 

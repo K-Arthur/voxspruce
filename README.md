@@ -1,14 +1,36 @@
-# Wayland Voice Control
+# Voxspruce
 
-A native GTK4/libadwaita Linux app for offline voice input: speak, review
-the complete result, then explicitly confirm dictation or one exact command.
-MIT licensed. Fresh launches start in **Practice**, which uses typed examples and simulated
-output; it constructs no microphone, desktop portal or live input adapter.
+<img src="data/io.github.wayland_voice_control.svg" width="96" height="96" alt="">
 
-GNOME Wayland is the intended first control target. The native app and automated
-protocol/widget tests are implemented. Real GNOME consent/input, microphone
-latency and testing with intended voice-input users remain release gates;
-this is experimental community software, not certified assistive technology.
+**Voxspruce is experimental offline voice input for Linux, designed with accessibility and privacy in mind.** Speak to draft dictation or an exact desktop command, review the result, and explicitly confirm before it acts. The app uses local speech recognition and starts in a safe, typed Practice mode.
+
+Accessibility is a goal, not a certification or a claim of suitability for everyday assistive use. GNOME Wayland is the first intended live-input target; real microphone capture, desktop permissions and input, screen-reader use, and tasks with intended users **have not yet been validated**. See [compatibility](docs/compatibility.md) and [release readiness](docs/release-readiness.md).
+
+**Help test:** Try Practice, read the [testing guide](CONTRIBUTING.md#help-test), and share a privacy-conscious [test report](https://github.com/K-Arthur/wayland-voice-control/issues/new?template=test-report.yml). Developers can start with [contributing](CONTRIBUTING.md). Report vulnerabilities [privately](SECURITY.md).
+
+Previously called Wayland Voice Control, Voxspruce retains the existing package, command, configuration, and application identifiers.
+
+## What can I try now?
+
+Practice lets you explore the review and confirmation workflow with typed examples and simulated output. It does not construct microphone, desktop portal, or live input adapters. Live mode uses a local Vosk model, explicit microphone consent, and desktop-granted keyboard access. Dictation and commands are separate; risky and custom commands require an additional confirmation.
+
+The application is MIT licensed. Normal recognition and review run offline; installing dependencies and obtaining a model require separate downloads, and model licenses are separate. There is no runtime account, cloud recognition, telemetry, or transcript history. See the [privacy model](docs/privacy.md) for memory, storage, and shared-microphone limitations.
+
+## Quick start: Practice mode
+
+On Linux, install Python 3.11+, GTK4, libadwaita, and your distribution's PyGObject bindings. The distribution commands below install additional dependencies needed for live use. From a checkout:
+
+```sh
+python3 -m venv --system-site-packages .venv
+.venv/bin/python -m pip install -e .
+.venv/bin/python -m wayland_voice_control
+```
+
+The dependency installation may use the network. The app opens in Practice: enter an example in Voice or Commands, review it, and confirm to see simulated output. A microphone, speech model, and desktop permission are not required for Practice.
+
+## What needs real-world testing?
+
+We especially welcome reports about setup, Practice, GNOME Wayland portal consent and text insertion, physical microphone capture, and accessibility with assistive technology. Use a disposable destination for live tests; a failed insertion may leave partial text. Do not rely on the app for essential tasks. The [manual test guide](docs/manual-test.md) explains how to record results without sharing private speech.
 
 ## Install and run
 
@@ -104,8 +126,7 @@ session-only; no wake word or idle microphone capture is added.
 
 An optional native KDE Plasma 6.7+ widget offers status, Open controls,
 Start recording / Finish and review, Cancel, Stop and Quit. After the local
-application install, run `./scripts/install-widget.sh`, then add **Wayland Voice
-Control** with Plasma's Add Widgets interface. Cold activation starts in
+application install, run `./scripts/install-widget.sh`, then add **Voxspruce** with Plasma's Add Widgets interface. Cold activation starts in
 Practice; Live setup remains explicit. See [desktop controls](docs/desktop-controls.md)
 for setup, updates, removal, privacy and GNOME limitations.
 
@@ -164,6 +185,7 @@ Unicode, keyboard layouts and destination behavior require real-session testing.
 - [Performance measurements](docs/performance.md), [validation evidence](docs/validation.md)
 - [Compatibility limits](docs/compatibility.md), [GNOME manual kill test](docs/manual-test.md)
 - [Accessibility target and verification](docs/accessibility.md) (no TalkBack parity or broad optimization claim)
-- [Development, CI and distribution](docs/development.md)
+- [Development, CI and distribution](docs/development.md), [contributing and testing](CONTRIBUTING.md)
+- [Launch materials and measurement](docs/launch/marketing.md), [brand guide](docs/launch/brand.md), [naming exploration](docs/launch/naming.md)
 - [Source-linked research](docs/research.md), [Vibe data-availability report](docs/vibe-data-availability.md)
 - [Implementation plan](docs/superpowers/plans/2026-10-25-wayland-voice-control.md)

@@ -1,7 +1,7 @@
-include LICENSE README.md
+include LICENSE README.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md
 recursive-include data *.desktop *.svg *.service
 recursive-include schemas *.json
-recursive-include docs *.md
+recursive-include docs *.md *.svg *.png
 recursive-include scripts *.py *.sh
 recursive-include tests *.py *.qml
 include .github/workflows/ci.yml

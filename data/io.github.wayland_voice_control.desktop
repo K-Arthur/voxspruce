@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
-Name=Wayland Voice Control
-Comment=Offline voice input with explicit review and isolated practice
+Name=Voxspruce
+Comment=Experimental offline voice input with review and practice mode
 Exec=wayland-voice-control
 Icon=io.github.wayland_voice_control
 Terminal=false

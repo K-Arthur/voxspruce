@@ -227,7 +227,7 @@ def check():
                     None,
                 )
 
-            require_node("Wayland Voice Control", "heading")
+            require_node("Voxspruce", "heading")
             for section in ("Speak, review, confirm", "Review the complete action"):
                 require_node(section, "grouping")
                 require_node(section, "heading")

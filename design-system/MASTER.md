@@ -1,4 +1,4 @@
-# Wayland Voice Control design system
+# Voxspruce design system
 
 Native GTK4/libadwaita desktop application, using the user-invoked UI/UX Pro Max guidance. Its bundled search script is absent (the `scripts` entry is a text pointer with no target installed); these decisions apply the supplied accessibility rules directly.
 

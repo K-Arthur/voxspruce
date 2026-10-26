@@ -2,13 +2,13 @@
     "KPackageStructure": "Plasma/Applet",
     "KPlugin": {
         "Id": "io.github.wayland_voice_control",
-        "Name": "Wayland Voice Control",
-        "Description": "Open and control offline voice assistance with explicit review",
+        "Name": "Voxspruce",
+        "Description": "Open experimental offline voice input controls with explicit review",
         "Icon": "audio-input-microphone",
         "Version": "0.1.0",
         "License": "MIT",
         "Category": "Accessibility",
-        "Authors": [{"Name": "Wayland Voice Control contributors"}]
+        "Authors": [{"Name": "Voxspruce contributors"}]
     },
     "X-Plasma-API-Minimum-Version": "6.7"
 }

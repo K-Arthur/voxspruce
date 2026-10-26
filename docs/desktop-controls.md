@@ -49,7 +49,7 @@ From an installed checkout:
 The second script explicitly registers the widget and its D-Bus activation file
 in the user's data directory. It does not add anything to the panel or desktop,
 change login startup, restart Plasma or request elevated privileges. Use
-Plasma's **Add Widgets** interface to add **Wayland Voice Control** to a panel or
+Plasma's **Add Widgets** interface to add **Voxspruce** to a panel or
 the desktop. The installer is also the update path after changing this checkout;
 keep the checkout and its venv in place while using it.
 

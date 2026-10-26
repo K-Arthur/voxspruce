@@ -173,7 +173,7 @@ def create_application(
                 ):
                     notification = Gio.Notification.new("Voice action ready for review")
                     notification.set_body(
-                        "Open Wayland Voice Control to review the action."
+                        "Open Voxspruce to review the action."
                     )
                     self.send_notification("review", notification)
 

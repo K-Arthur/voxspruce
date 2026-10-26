@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">Voxspruce spruce and voice waveform mark</title>
+  <g fill="#153f39">
+    <rect x="7" y="70" width="8" height="14" rx="4"/>
+    <rect x="19" y="61" width="9" height="24" rx="4.5"/>
+    <path d="M33 52a5 5 0 0 1 10 0v29c0 8 10 14 22 22l-2 15C51 104 33 99 33 83Z"/>
+    <path d="M48 42a5 5 0 0 1 10 0v33c0 8 1 15 7 23C55 94 48 87 48 78Z"/>
+  </g>
+  <g fill="#153f39">
+    <path d="M63 9c3 11 10 18 20 21-6 4-11 4-16 1 5 10 13 16 24 18-7 5-15 5-23 1 6 10 17 16 29 17-8 6-17 7-27 2v20a5 5 0 0 1-10 0V18c0-4 1-7 3-9Z"/>
+    <path d="M76 76a5 5 0 0 1 10 0v10c0 7-7 13-16 18l-7 14c0-12 4-17 9-24 3-4 4-8 4-12Z"/>
+    <path d="M91 79a5 5 0 0 1 10 0v8c0 9-11 15-22 20 7-7 12-13 12-19Z"/>
+    <rect x="105" y="79" width="9" height="20" rx="4.5"/>
+    <rect x="117" y="83" width="7" height="13" rx="3.5"/>
+  </g>
+</svg>
