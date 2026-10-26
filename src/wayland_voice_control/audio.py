@@ -45,7 +45,7 @@ def spawn_recorder():
             "pw-record",
             "--media-type=Audio",
             "--media-category=Capture",
-            "--media-role=Communication",
+            "--media-role=Accessibility",
             "--properties",
             (
                 '{"application.name":"Wayland Voice Control",'

@@ -292,7 +292,7 @@ processes or verify behavior in a real GNOME session.
 ## Coexistence with other voice applications
 
 The capture stream is now explicitly categorized as PipeWire `Audio/Capture`
-with the `Communication` role and carries the application and stream names
+with the `Accessibility` role and carries the application and stream names
 `Wayland Voice Control` and `Voice Control microphone capture`. A PipeWire graph
 check using `--target=0` confirmed these properties without linking a microphone.
 Setup warns that capture is shared and advises pausing other voice/dictation
