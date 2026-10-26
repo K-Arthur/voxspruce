@@ -6,7 +6,7 @@
 
 Accessibility is a goal, not a certification or a claim of suitability for everyday assistive use. GNOME Wayland is the first intended live-input target; real microphone capture, desktop permissions and input, screen-reader use, and tasks with intended users **have not yet been validated**. See [compatibility](docs/compatibility.md) and [release readiness](docs/release-readiness.md).
 
-**Help test:** Try Practice, read the [testing guide](CONTRIBUTING.md#help-test), and share a privacy-conscious [test report](https://github.com/K-Arthur/wayland-voice-control/issues/new?template=test-report.yml). Developers can start with [contributing](CONTRIBUTING.md). Report vulnerabilities [privately](SECURITY.md).
+**Help test:** Try Practice, read the [testing guide](CONTRIBUTING.md#help-test), and share a privacy-conscious [test report](https://github.com/K-Arthur/voxspruce/issues/new?template=test-report.yml). Developers can start with [contributing](CONTRIBUTING.md). Report vulnerabilities [privately](SECURITY.md).
 
 Previously called Wayland Voice Control, Voxspruce retains the existing package, command, configuration, and application identifiers.
 
@@ -18,9 +18,11 @@ The application is MIT licensed. Normal recognition and review run offline; inst
 
 ## Quick start: Practice mode
 
-On Linux, install Python 3.11+, GTK4, libadwaita, and your distribution's PyGObject bindings. The distribution commands below install additional dependencies needed for live use. From a checkout:
+On Linux, install Python 3.11+, GTK4, libadwaita, and your distribution's PyGObject bindings. The distribution commands below install additional dependencies needed for live use. Clone the repository and start Practice:
 
 ```sh
+git clone https://github.com/K-Arthur/voxspruce.git
+cd voxspruce
 python3 -m venv --system-site-packages .venv
 .venv/bin/python -m pip install -e .
 .venv/bin/python -m wayland_voice_control

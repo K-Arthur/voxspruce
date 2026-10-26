@@ -15,9 +15,9 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/K-Arthur/wayland-voice-control"
-Documentation = "https://github.com/K-Arthur/wayland-voice-control#readme"
-Issues = "https://github.com/K-Arthur/wayland-voice-control/issues"
+Homepage = "https://github.com/K-Arthur/voxspruce"
+Documentation = "https://github.com/K-Arthur/voxspruce#readme"
+Issues = "https://github.com/K-Arthur/voxspruce/issues"
 
 [project.scripts]
 wayland-voice-control = "wayland_voice_control.__main__:main"

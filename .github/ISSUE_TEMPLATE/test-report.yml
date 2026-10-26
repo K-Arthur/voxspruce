@@ -4,7 +4,7 @@ title: "Test: "
 body:
   - type: markdown
     attributes:
-      value: "Participation is voluntary. Do not include recordings, transcripts, private paths, tokens, identifying device data, or a diagnosis. Please review logs and screenshots before posting. Report vulnerabilities [privately](https://github.com/K-Arthur/wayland-voice-control/security/advisories/new)."
+      value: "Participation is voluntary. Do not include recordings, transcripts, private paths, tokens, identifying device data, or a diagnosis. Please review logs and screenshots before posting. Report vulnerabilities [privately](https://github.com/K-Arthur/voxspruce/security/advisories/new)."
   - type: dropdown
     id: mode
     attributes:

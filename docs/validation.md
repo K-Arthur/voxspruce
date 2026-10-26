@@ -213,7 +213,7 @@ these did not fail the checks.
 The Linux CI workflow is configured for pure tests, real GTK/XTest cases,
 protocol integration, static checks, distribution build and installed entry-point
 inspection. GitHub Actions passed all jobs for commit `dcc7eb5`, including the
-installed entry-point checks ([run 40237283310](https://github.com/K-Arthur/wayland-voice-control/actions/runs/40237283310)).
+installed entry-point checks ([run 40237283310](https://github.com/K-Arthur/voxspruce/actions/runs/40237283310)).
 Final independent specification and code-quality reviews approved commit
 `ab6cc25`; fresh review verification also passed all 203 tests, Ruff, compileall,
 isolated Gio protocol checks and wheel/sdist builds.
@@ -390,7 +390,7 @@ The completed desktop-controls feature was fast-forward merged and pushed to
 `main` at `25ba3be`. The merged checkout passed the full GTK-enabled 235-test run
 (three optional Vosk cases skipped), 21 native KDE tests, the three-case actual
 GTK–QML scenario, the real Gio portal check, static checks and all three build
-artifacts. [Public main-branch CI passed](https://github.com/K-Arthur/wayland-voice-control/actions/runs/40272285201),
+artifacts. [Public main-branch CI passed](https://github.com/K-Arthur/voxspruce/actions/runs/40272285201),
 including installed entry-point checks and distribution upload. The source
 worktree was removed after copying local visual evidence to the main checkout's
 ignored `artifacts/` directory. The main checkout retains the built `.plasmoid`,
@@ -478,6 +478,6 @@ The provisional explicit-status-name change was reverted after this evidence;
 it did not solve the compatibility issue and is not part of the final source.
 Public Ubuntu CI passed every stage for `0a1a809`, including the actual AT-SPI
 workflow, private portal protocol, native widgets, distributions and installed
-entry-point checks ([run 40277407475](https://github.com/K-Arthur/wayland-voice-control/actions/runs/40277407475)).
+entry-point checks ([run 40277407475](https://github.com/K-Arthur/voxspruce/actions/runs/40277407475)).
 This closes that software portability gate, not the manual GNOME/microphone/Orca
 or intended-user release matrix.

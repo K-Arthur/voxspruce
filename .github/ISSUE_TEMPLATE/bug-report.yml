@@ -4,7 +4,7 @@ title: "Bug: "
 body:
   - type: markdown
     attributes:
-      value: "Do not post transcripts, recordings, tokens, private paths or device identifiers. For vulnerabilities use [private reporting](https://github.com/K-Arthur/wayland-voice-control/security/advisories/new)."
+      value: "Do not post transcripts, recordings, tokens, private paths or device identifiers. For vulnerabilities use [private reporting](https://github.com/K-Arthur/voxspruce/security/advisories/new)."
   - type: textarea
     id: problem
     attributes:

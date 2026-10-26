@@ -1,6 +1,6 @@
 # Voxspruce brand guide
 
-Voxspruce is the public-facing name of this experimental Linux voice-input project, previously called Wayland Voice Control. Keep the repository URL, package name, command, application IDs, and configuration paths unchanged for compatibility. The voice is direct, respectful, welcoming, technically clear, and candid about limitations.
+Voxspruce is the public-facing name of this experimental Linux voice-input project, previously called Wayland Voice Control. The canonical repository is `K-Arthur/voxspruce`. The package name, command, application IDs, and configuration paths retain their earlier identifiers for compatibility. The voice is direct, respectful, welcoming, technically clear, and candid about limitations.
 
 ## Mark
 
