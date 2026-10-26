@@ -198,6 +198,12 @@ def check():
                 if not Atspi.Action.do_action(node, 0):
                     raise AssertionError("Accessibility action rejected.")
 
+            def text_contents(node):
+                # GTK 4.14's GtkEditable clamps end=-1 to zero. Request the
+                # explicit complete character range on every supported version.
+                count = Atspi.Text.get_character_count(node)
+                return Atspi.Text.get_text(node, 0, count)
+
             def set_text(name, text):
                 node = require_node(name, "text")
                 if not Atspi.EditableText.set_text_contents(node, text):
@@ -205,7 +211,7 @@ def check():
                         "Accessible editor rejected synthetic content."
                     )
                 wait(
-                    lambda: Atspi.Text.get_text(node, 0, -1) == text,
+                    lambda: text_contents(node) == text,
                     "Accessible editor did not update.",
                 )
                 return node
@@ -216,7 +222,7 @@ def check():
                         node
                         for node in walk(root)
                         if node.get_role() == Atspi.Role.STATUS_BAR
-                        and node.get_name().startswith(starts)
+                        and text_contents(node).startswith(starts)
                     ),
                     None,
                 )
@@ -239,10 +245,10 @@ def check():
             wait(lambda: status("Reviewing"), "Accessible review action did not run.")
             editor = require_node("Complete transcript editor", "text")
             wait(
-                lambda: Atspi.Text.get_text(editor, 0, -1) == "synthetic example",
+                lambda: text_contents(editor) == "synthetic example",
                 "Review does not expose complete synthetic text.",
             )
-            if "synthetic example" in status("Reviewing").get_name():
+            if "synthetic example" in text_contents(status("Reviewing")):
                 raise AssertionError("Private text leaked into status announcements.")
             activate("Edit transcript…")
             wait(lambda: status("Editing"), "Edit did not revoke review.")

@@ -43,7 +43,10 @@ PANEL because Ubuntu Noble's
 [GTK compatibility patch](https://archive.ubuntu.com/ubuntu/pool/main/g/gtk4/gtk4_4.14.5+ds-0ubuntu0.10.debian.tar.xz)
 intentionally maps GTK GROUP to PANEL for its bundled older Orca. The exact name
 and heading remain required, and native GTK tests require GROUP itself. Other
-roles remain exact; the check does not accept arbitrary roles.
+roles remain exact; the check does not accept arbitrary roles. Text reads use
+`GetText(0, CharacterCount)` because GTK 4.14 clamps a negative end offset to
+zero for GtkEditable. Status content is read through the Text interface: that
+GTK version deliberately prohibits an accessible name for the STATUS role.
 
 GTK tests are opt-in during pure discovery and run explicitly in CI. Optional
 installed-Vosk/native diagnostic cases skip if their engine/fixture is absent;

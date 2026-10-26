@@ -461,7 +461,19 @@ setters by assigning each semantic widget's instance `accessible_role` property
 first during construction. A fresh-process regression was observed failing with
 a legacy class setter unable to update instances, then passing with constructor
 properties; ordinary labels/boxes retain their roles. This is initialization
-hardening, and did not itself resolve the Ubuntu mapping mismatch. Local native
-discovery passes 250 cases with 3 optional speech checks skipped in the default
-environment, and the actual local AT-SPI workflow passes. Ubuntu CI must confirm
-the complete cross-distribution transport workflow.
+hardening, and did not itself resolve the Ubuntu mapping mismatch. Fresh native discovery passes **250 cases with no skips** using the existing
+optional speech environment/model fixture. The actual local AT-SPI workflow
+also passes.
+
+A separate Ubuntu 24.04 runtime with GTK 4.14.5/PyGObject 3.48.2 was reproduced
+inside an unprivileged bubblewrap filesystem/user/PID namespace using temporary
+files, without installing system packages on the host. An instrumented synthetic
+entry had 17 characters; `GetText(0,-1)` returned length zero while
+`GetText(0,CharacterCount)` exactly matched the set text. The harness now uses
+explicit complete ranges. GTK 4.14 intentionally prohibits an accessible name
+for STATUS; the status Text interface exposes the current state, so the harness
+checks that full content and its privacy boundary instead of expecting a name.
+The complete Practice accessibility workflow passes in that Ubuntu runtime.
+The provisional explicit-status-name change was reverted after this evidence;
+it did not solve the compatibility issue and is not part of the final source.
+Public Ubuntu CI still provides the distribution/build gate before integration.
