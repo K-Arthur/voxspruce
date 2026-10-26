@@ -5,6 +5,7 @@ The subprocess owns its fake portal, emits early responses, and records keys in
 memory. No compositor input, permission UI, microphone, or network is involved.
 """
 
+import os
 import subprocess
 import sys
 
@@ -37,7 +38,7 @@ name_result = bus.call_sync(
     "/org/freedesktop/DBus",
     "org.freedesktop.DBus",
     "RequestName",
-    GLib.Variant("(su)", (DESTINATION, 0)),
+    GLib.Variant("(su)", (DESTINATION, 1)),
     None,
     Gio.DBusCallFlags.NONE,
     1000,
@@ -187,13 +188,102 @@ def finish():
         assert shortcuts.bindings["show_controls"] == "Assigned show_controls", (
             f"Missing Show controls binding description: {shortcuts.bindings!r}"
         )
-        print(
-            "PASS: real Gio async requests, early Response signals, keyboard-only options, Unicode key events, shortcut events and revocation on isolated D-Bus"
-        )
+
     except (AssertionError, ValueError, TypeError, GLib.Error) as exc:
         errors.append(str(exc))
     shortcuts.close()
-    loop.quit()
+    if errors:
+        loop.quit()
+    else:
+        owner_loss_checks()
+
+
+def owner_loss_checks():
+    """Use actual bus owner transitions, including direct name replacement."""
+    replacement = Gio.DBusConnection.new_for_address_sync(
+        os.environ["DBUS_SESSION_BUS_ADDRESS"],
+        Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT
+        | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
+        None,
+        None,
+    )
+    for interface in Gio.DBusNodeInfo.new_for_xml(xml).interfaces:
+        registrations.append(
+            replacement.register_object(DESKTOP, interface, method, None, None)
+        )
+    for path in (remote_session, shortcut_session):
+        registrations.append(
+            replacement.register_object(
+                path,
+                Gio.DBusNodeInfo.new_for_xml(session_xml).interfaces[0],
+                method,
+                None,
+                None,
+            )
+        )
+    lost = []
+    remote.on_closed = lambda: lost.append("remote")
+    shortcuts.on_closed = lambda: lost.append("shortcuts")
+
+    def name_call(connection, operation, flags=None):
+        return connection.call_sync(
+            "org.freedesktop.DBus",
+            "/org/freedesktop/DBus",
+            "org.freedesktop.DBus",
+            operation,
+            GLib.Variant(
+                "(s)" if flags is None else "(su)",
+                (DESTINATION,) if flags is None else (DESTINATION, flags),
+            ),
+            None,
+            Gio.DBusCallFlags.NONE,
+            1000,
+            None,
+        ).unpack()[0]
+
+    def check(mode):
+        try:
+            assert not remote.granted, f"Keyboard grant survived portal owner {mode}"
+            assert not shortcuts.bindings, (
+                f"Shortcut bindings survived portal owner {mode}"
+            )
+            assert lost == ["remote", "shortcuts"], (
+                f"Unexpected owner loss callbacks: {lost!r}"
+            )
+            if mode == "disappearance":
+                assert name_call(bus, "RequestName", 1) == 1
+                lost.clear()
+                establish("replacement")
+            else:
+                replacement.close_sync(None)
+                print(
+                    "PASS: real Gio async requests, early responses, Unicode keys, shortcuts, session closure and portal owner disappearance/replacement on isolated D-Bus"
+                )
+                loop.quit()
+        except (AssertionError, GLib.Error) as exc:
+            fail(exc)
+        return False
+
+    def establish(mode):
+        def bound(ok, error):
+            if not ok or error:
+                fail(error)
+                return
+            if mode == "disappearance":
+                assert name_call(bus, "ReleaseName") == 1
+            else:
+                assert name_call(replacement, "RequestName", 2) == 1
+            GLib.timeout_add(50, lambda: check(mode))
+
+        def granted(ok, error):
+            if not ok or error:
+                fail(error)
+                return
+            shortcuts.connect(bound)
+
+        remote.connect(granted)
+
+    establish("disappearance")
 
 
 def shortcuts_bound(ok, error):

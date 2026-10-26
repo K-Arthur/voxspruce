@@ -56,6 +56,12 @@ may round it upward for display. Do not infer microphone activity from workflow
   `connect_shortcuts()` explicitly binds it. Granted subsets and actual trigger
   descriptions are exposed. Hold-to-talk starts on press and finishes on release;
   confirm/cancel fire only on release. Global confirm cannot perform stage two.
+- Pending requests and active keyboard/shortcut sessions watch the narrowly
+  filtered portal `NameOwnerChanged` signal. Owner disappearance or replacement
+  invalidates grants and pending work; late responses cannot restore authority.
+  Initial lazy activation (no owner to first owner) is allowed only as part of
+  the explicit connection flow. Session close removes all subscriptions. Cleanup
+  and key delivery disable D-Bus auto-start; there is no reconnect or input replay.
 
 For a separate practice coordinator, supply `remote=PracticeInput()` and
 `practice=True`. Only `review_text(text, mode)` creates examples. Capture is

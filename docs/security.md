@@ -57,7 +57,11 @@ dumps are outside the app's control. This is not secure-memory erasure. See
   keyboard input into the focused application; pause it before confirming here
   to prevent interleaved input. Global shortcut ownership is desktop managed;
   the portal can return only accepted bindings, and unbound actions remain
-  available through the app's local controls.
+  available through the app's local controls. Portal service disappearance or
+  replacement revokes active and pending sessions and discards work, even when
+  the service cannot emit Session.Closed. Old callbacks cannot restore grants;
+  reconnecting requires an explicit setup action. Cleanup/key delivery cannot
+  auto-start the portal or replay a pending action.
 - The optional `espeak-ng` process receives only the reviewed action through
   stdin. Capture and speech subprocesses use fixed argument arrays, no shell,
   bounded lifetimes and sanitized app-authored errors. Python documents that

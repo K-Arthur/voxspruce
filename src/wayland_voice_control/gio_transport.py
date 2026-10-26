@@ -73,7 +73,11 @@ class GioWire:
             method,
             GLib.Variant(signature, _typed(args)),
             None,
-            Gio.DBusCallFlags.NONE,
+            (
+                Gio.DBusCallFlags.NO_AUTO_START
+                if method == "Close"
+                else Gio.DBusCallFlags.NONE
+            ),
             60000,
             None,
             done,
@@ -94,6 +98,25 @@ class GioWire:
             ),
         )
 
+    def subscribe_owner_lost(self, callback):
+        """Watch only the portal name; initial lazy activation is not a loss."""
+        from gi.repository import Gio
+
+        def changed(_connection, _sender, _path, _interface, _signal, values, *_):
+            name, before, after = values.unpack()
+            if name == DESTINATION and before and before != after:
+                callback()
+
+        return self.connection.signal_subscribe(
+            "org.freedesktop.DBus",
+            "org.freedesktop.DBus",
+            "NameOwnerChanged",
+            "/org/freedesktop/DBus",
+            DESTINATION,
+            Gio.DBusSignalFlags.NONE,
+            changed,
+        )
+
     def unsubscribe(self, token):
         self.connection.signal_unsubscribe(token)
 
@@ -110,7 +133,7 @@ class GioWire:
             "NotifyKeyboardKeysym",
             GLib.Variant("(oa{sv}iu)", (session, {}, symbol, state)),
             None,
-            Gio.DBusCallFlags.NONE,
+            Gio.DBusCallFlags.NO_AUTO_START,
             5000,
             None,
         )

@@ -25,12 +25,20 @@ class FakeTransport:
         self.closed.append(path)
 
     def subscribe(self, interface, signal, path, callback):
-        token = len(self.signals) + 1
+        token = max(self.signals, default=0) + 1
         self.signals[token] = (interface, signal, path, callback)
         return token
 
     def unsubscribe(self, token):
         self.signals.pop(token, None)
+
+    def subscribe_owner_lost(self, callback):
+        return self.subscribe("dbus", "owner_lost", None, callback)
+
+    def lose_owner(self):
+        for token, entry in list(self.signals.items()):
+            if token in self.signals and entry[1] == "owner_lost":
+                entry[3]()
 
     def notify_key(self, session, symbol, state):
         self.keys.append((session, symbol, state))
@@ -45,13 +53,19 @@ class FakeWire:
         self.events = []
         self.callback = None
         self.expire = None
+        self.owner_callbacks = {}
 
     def subscribe(self, interface, signal, path, callback):
         self.events.append(("subscribe", path))
         self.callback = callback
         return 7
 
+    def subscribe_owner_lost(self, callback):
+        self.owner_callbacks[8] = callback
+        return 8
+
     def unsubscribe(self, token):
+        self.owner_callbacks.pop(token, None)
         self.events.append(("unsubscribe", token))
 
     def call(self, interface, method, path, signature, args, callback):
@@ -93,6 +107,20 @@ class RequestTests(unittest.TestCase):
         wire.callback((0, {"session_handle": "/session"}))
         wire.method_done(("/org/freedesktop/portal/desktop/request/1_25/abc",), None)
         self.assertEqual(results, [(0, {"session_handle": "/session"}, None)])
+
+    def test_owner_loss_finishes_pending_request_and_ignores_late_success(self):
+        wire, results = FakeWire(), []
+        RequestTransport(wire, token_factory=lambda: "abc").request(
+            "remote", "Start", "(a{sv})", (), {}, lambda *x: results.append(x)
+        )
+        self.assertEqual(len(wire.owner_callbacks), 1)
+        next(iter(wire.owner_callbacks.values()))()
+        self.assertEqual(len(results), 1)
+        self.assertIsInstance(results[0][2], RuntimeError)
+        wire.callback((0, {"devices": 1}))
+        wire.method_done(("/org/freedesktop/portal/desktop/request/1_25/abc",), None)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(wire.owner_callbacks, {})
 
     def test_timeout_and_cancel_close_request_and_unsubscribe(self):
         for timeout in (True, False):
@@ -239,13 +267,79 @@ class RemoteTests(unittest.TestCase):
             [entry[1:] for entry in self.transport.keys], [(0xFFE3, 1), (0xFFE3, 0)]
         )
 
+    def test_owner_loss_revokes_completed_grant_and_notifies_once(self):
+        closed = []
+        self.remote.on_closed = lambda closed=closed: closed.append(True)
+        self.grant()
+        self.transport.lose_owner()
+        self.assertFalse(self.remote.granted)
+        self.assertEqual(closed, [True])
+        self.assertEqual(self.transport.signals, {})
+        self.assertEqual(len(self.transport.requests), 3)
+
+    def test_owner_loss_during_each_stage_rejects_late_grant(self):
+        for stage in range(3):
+            with self.subTest(stage=stage):
+                self.setUp()
+                closed = []
+                self.remote.on_closed = lambda closed=closed: closed.append(True)
+                self.remote.connect(lambda *args: self.events.append(args))
+                if stage > 0:
+                    self.transport.reply({"session_handle": "/session"})
+                if stage > 1:
+                    self.transport.reply()
+                pending = self.transport.requests[-1]
+                self.transport.lose_owner()
+                pending[5](0, {"session_handle": "/session", "devices": 1}, None)
+                self.assertFalse(self.remote.granted)
+                self.assertEqual(closed, [True])
+                self.assertFalse(self.transport.signals)
+                self.assertEqual(len(self.transport.requests), stage + 1)
+
+    def test_old_owner_callback_cannot_revoke_a_new_explicit_session(self):
+        self.grant()
+        stale = next(
+            v[3] for v in self.transport.signals.values() if v[1] == "owner_lost"
+        )
+        self.grant()
+        stale()
+        self.assertTrue(self.remote.granted)
+        self.remote.close()
+        self.assertFalse(self.transport.signals)
+
     def test_session_closed_revokes_permission(self):
         self.grant()
-        next(iter(self.transport.signals.values()))[3](())
+        next(v[3] for v in self.transport.signals.values() if v[1] == "Closed")(())
         self.assertFalse(self.remote.granted)
 
 
 class ShortcutTests(unittest.TestCase):
+    def test_owner_loss_clears_completed_or_pending_shortcuts(self):
+        for stage in range(3):
+            with self.subTest(stage=stage):
+                wire, closed = FakeTransport(), []
+                shortcuts = GlobalShortcuts(
+                    wire,
+                    lambda *_: None,
+                    on_closed=lambda closed=closed: closed.append(True),
+                )
+                shortcuts.connect(lambda *_: None)
+                if stage > 0:
+                    wire.reply({"session_handle": "/shortcuts"})
+                if stage > 1:
+                    wire.reply({"shortcuts": [("confirm", {})]})
+                pending = wire.requests[-1]
+                wire.lose_owner()
+                pending[5](
+                    0,
+                    {"session_handle": "/shortcuts", "shortcuts": [("confirm", {})]},
+                    None,
+                )
+                self.assertEqual(shortcuts.bindings, {})
+                self.assertEqual(closed, [True])
+                self.assertFalse(wire.signals)
+                self.assertEqual(len(wire.requests), min(stage + 1, 2))
+
     def test_granted_subset_repeat_dedup_and_confirm_on_release(self):
         wire = FakeTransport()
         events = []
@@ -286,8 +380,61 @@ class ShortcutTests(unittest.TestCase):
 
 
 class GioWireTests(unittest.TestCase):
-    def test_real_variants_for_options_shortcuts_and_keys(self):
+    def test_owner_subscription_ignores_initial_activation_and_other_names(self):
         from gi.repository import GLib
+
+        from wayland_voice_control.gio_transport import GioWire
+        from wayland_voice_control.transport import DESTINATION
+
+        class Connection:
+            def get_unique_name(self):
+                return ":1.42"
+
+            def signal_subscribe(self, *args):
+                self.args = args
+                return 19
+
+        connection, lost = Connection(), []
+        wire = GioWire(connection)
+        self.assertEqual(wire.subscribe_owner_lost(lambda: lost.append(True)), 19)
+        args = connection.args
+        self.assertEqual(
+            args[:5],
+            (
+                "org.freedesktop.DBus",
+                "org.freedesktop.DBus",
+                "NameOwnerChanged",
+                "/org/freedesktop/DBus",
+                DESTINATION,
+            ),
+        )
+        for name, before, after in [
+            (DESTINATION, "", ":1.1"),
+            ("other", ":1.1", ""),
+            (DESTINATION, ":1.1", ":1.1"),
+        ]:
+            args[6](
+                None,
+                None,
+                None,
+                None,
+                None,
+                GLib.Variant("(sss)", (name, before, after)),
+            )
+        self.assertEqual(lost, [])
+        for after in ("", ":1.2"):
+            args[6](
+                None,
+                None,
+                None,
+                None,
+                None,
+                GLib.Variant("(sss)", (DESTINATION, ":1.1", after)),
+            )
+        self.assertEqual(lost, [True, True])
+
+    def test_real_variants_for_options_shortcuts_and_keys(self):
+        from gi.repository import Gio, GLib
 
         from wayland_voice_control.gio_transport import GioWire
 
@@ -335,6 +482,9 @@ class GioWireTests(unittest.TestCase):
         )
         self.assertEqual(connection.call_args[4].unpack()[1][0][0], "confirm")
         wire.notify_key("/session", 97, 1)
+        self.assertEqual(connection.sync_args[6], Gio.DBusCallFlags.NO_AUTO_START)
+        wire.call("session", "Close", "/s", "()", (), lambda *_: None)
+        self.assertEqual(connection.call_args[6], Gio.DBusCallFlags.NO_AUTO_START)
         self.assertEqual(
             connection.sync_args[2:5],
             (

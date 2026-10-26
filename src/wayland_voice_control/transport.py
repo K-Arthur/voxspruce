@@ -34,6 +34,7 @@ class RequestTransport:
         verified = False
         early_response = None
         subscription = None
+        owner_subscription = None
         cancel_timer = None
 
         def close_request():
@@ -46,6 +47,8 @@ class RequestTransport:
             finished = True
             if subscription is not None:
                 self.wire.unsubscribe(subscription)
+            if owner_subscription is not None:
+                self.wire.unsubscribe(owner_subscription)
             if cancel_timer:
                 cancel_timer()
             callback(code, results, error)
@@ -85,6 +88,9 @@ class RequestTransport:
                 finish(2, {}, PortalError(message))
 
         subscription = self.wire.subscribe(REQUEST, "Response", path, response)
+        owner_subscription = self.wire.subscribe_owner_lost(
+            lambda: finish(2, {}, PortalError("Desktop portal service ended."))
+        )
         cancel_timer = self.wire.schedule(
             self.timeout, lambda: cancel("Portal request timed out.")
         )
@@ -110,6 +116,9 @@ class RequestTransport:
 
     def subscribe(self, *args):
         return self.wire.subscribe(*args)
+
+    def subscribe_owner_lost(self, callback):
+        return self.wire.subscribe_owner_lost(callback)
 
     def unsubscribe(self, token):
         self.wire.unsubscribe(token)

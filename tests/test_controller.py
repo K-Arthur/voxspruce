@@ -525,6 +525,26 @@ class ControllerPortalLifecycleTests(unittest.TestCase):
         self.wire.reply()
         self.wire.reply({"devices": 1})
 
+    def test_portal_owner_loss_cancels_recording_review_and_countdown(self):
+        for activity in ("recording", "review", "countdown"):
+            with self.subTest(activity=activity):
+                self.make_controller()
+                self.grant_keyboard()
+                self.controller.start_recording()
+                if activity != "recording":
+                    self.controller.finish_recording()
+                    self.audio.callbacks["on_result"]("hello")
+                if activity == "countdown":
+                    self.controller.confirm(self.controller.snapshot.pending.id)
+                self.wire.lose_owner()
+                self.assertFalse(self.remote.granted)
+                self.assertFalse(self.controller.snapshot.permission_granted)
+                self.assertIsNone(self.controller.snapshot.pending)
+                self.assertNotEqual(self.controller.snapshot.state, State.RECORDING)
+                self.scheduler.advance(10)
+                self.assertFalse(self.wire.keys)
+                self.assertFalse(self.wire.signals)
+
     def test_cancel_or_mode_change_closes_inflight_keyboard_session_at_each_stage(self):
         for stage in ("create", "select", "start"):
             for operation in ("cancel", "mode"):

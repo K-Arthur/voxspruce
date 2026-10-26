@@ -41,12 +41,16 @@ class RemoteDesktop:
         self._session = None
         self._cancel_request = None
         self._closed_signal = None
+        self._owner_signal = None
         self._input_cancel = threading.Event()
         self._busy = False
 
     def connect(self, callback, parent_window=""):
         self.close()
         generation = self._generation
+        self._owner_signal = self.transport.subscribe_owner_lost(
+            lambda: self._closed(generation)
+        )
 
         def failed(message):
             if generation == self._generation:
@@ -125,6 +129,9 @@ class RemoteDesktop:
         cancel, self._cancel_request = self._cancel_request, None
         if cancel:
             cancel()
+        if self._owner_signal is not None:
+            self.transport.unsubscribe(self._owner_signal)
+            self._owner_signal = None
         if self._closed_signal is not None:
             self.transport.unsubscribe(self._closed_signal)
             self._closed_signal = None
@@ -212,6 +219,9 @@ class GlobalShortcuts:
     def connect(self, callback, parent_window=""):
         self.close()
         generation = self._generation
+        self._signals.append(
+            self.transport.subscribe_owner_lost(lambda: self._closed(generation))
+        )
 
         def response(next_step):
             def received(code, results, error):
