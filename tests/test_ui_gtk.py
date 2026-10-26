@@ -401,6 +401,42 @@ assert Gtk.Accessible.get_accessible_role(Gtk.Box()) == Gtk.AccessibleRole.GENER
             )
         )
 
+    def test_status_accessible_name_tracks_visible_changes_without_transcript(self):
+        from gi.repository import Gtk
+
+        from wayland_voice_control.window import AccessibleStatus
+
+        updates = []
+
+        def update(widget, properties, values):
+            updates.append((tuple(properties), tuple(values)))
+            Gtk.Accessible.update_property(widget, properties, values)
+
+        def assert_current_name():
+            names = [
+                values[properties.index(Gtk.AccessibleProperty.LABEL)]
+                for properties, values in updates
+                if Gtk.AccessibleProperty.LABEL in properties
+            ]
+            self.assertTrue(names, "Status must publish an explicit accessible name")
+            self.assertEqual(names[-1], self.window.status.get_text())
+            self.assertNotIn("private transcript", " ".join(names))
+            self.assertTrue(Gtk.test_accessible_has_property(
+                self.window.status, Gtk.AccessibleProperty.LABEL
+            ))
+            updates.clear()
+
+        with patch.object(AccessibleStatus, "update_property", update):
+            self.practice_review("private transcript")
+            assert_current_name()
+            # Read-back errors update the label directly, outside render().
+            with patch("wayland_voice_control.window.shutil.which", return_value=None):
+                self.window.read_back()
+            self.assertIn("read-back unavailable", self.window.status.get_text())
+            assert_current_name()
+            self.window.controller.cancel()
+            assert_current_name()
+
     def test_status_is_announced_to_screen_readers_without_reading_transcript(self):
         from gi.repository import Gtk
 
