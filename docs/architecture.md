@@ -120,3 +120,13 @@ Unit and private D-Bus tests verify policy and protocol behavior. Xvfb verifies
 native widgets. Neither establishes real GNOME input compatibility or speech
 usability. [manual-test.md](manual-test.md) defines those release gates;
 [validation.md](validation.md) records what was actually run.
+
+## Background desktop controls
+
+The GTK application owns a session-only background hold and the same controller
+while its window is hidden. A fixed Controls1 D-Bus interface connects the
+optional Plasma widget; it accepts no transcript, chord or approval. Closing to
+background cancels transient work while retaining completed grants; Quit calls
+idempotent shutdown. Cold service activation constructs a hidden Practice window.
+Final review presents the main window, where all confirmation remains. See
+[desktop controls](desktop-controls.md) for the status contract and lifecycle.

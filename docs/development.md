@@ -46,7 +46,8 @@ cd /tmp
 
 Setuptools 77+ is the declared build dependency. A wheel includes native UI
 modules, both SQLite resources, its source-run app icon, desktop entry, hicolor
-SVG and both JSON schemas. The sdist additionally includes source, tests, docs,
+SVG, both JSON schemas, the activation service and Plasma metadata/QML. The
+sdist additionally includes source, Python/QML tests, integration sources, docs,
 scripts and Linux CI. There are no mandatory PyPI runtime dependencies: desktop
 libraries come from the distribution; `[speech]` adds Vosk. The application-menu
 installer writes a launcher tied to this checkout's venv and a matching hicolor
@@ -57,7 +58,8 @@ tests, Ruff, compileall, Xvfb GTK/XTest tests, private Gio protocol integration,
 wheel/sdist build and installed CLI/resource inspection. The first successful
 public run passed all checks for commit `dcc7eb5` ([GitHub Actions](https://github.com/K-Arthur/wayland-voice-control/actions/runs/40237283310)).
 
-The default launcher starts a fresh isolated Practice controller. Live mode
+A fresh process starts an isolated Practice controller. A later launch presents
+the existing resident controller without reconnecting or replaying work. Live mode
 constructs `RequestTransport(GioWire())`, `RemoteDesktop`, `GlobalShortcuts` and
 `AudioCapture` only after explicit selection; consent/recording remain separate
 actions. UI observers and all public controller calls stay on the GTK thread.
@@ -68,3 +70,33 @@ native display attachment as well as widget signals: an unattached Gtk.Stack can
 pass signal-only tests. Inspect real rendered windows at compact/desktop widths,
 large fonts and light/dark themes. Real GNOME grants/input/microphone/Orca/user
 usability still require the separate manual checklist.
+
+## Resident application and Plasma integration
+
+Native CI now includes `tests.test_app` alongside `tests.test_ui_gtk`. Its separate
+Gio client connection exercises the actual Controls1 wire, and subprocess cases
+exercise cold background launch, second launch and Quit response/exit ordering.
+All use temporary private preferences and fake live adapters.
+
+On the Plasma 6.7+ development host, the widget's QML tests use Qt Quick Test and
+the installed workspace D-Bus QML module:
+
+```sh
+QT_NO_XDG_DESKTOP_PORTAL=1 QT_QPA_PLATFORMTHEME=generic \
+  QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+  QT_QUICK_CONTROLS_STYLE=org.kde.desktop \
+  dbus-run-session -- /usr/lib/qt6/bin/qmltestrunner -input tests/qml
+.venv/bin/python scripts/check-widget-protocol.py
+.venv/bin/python scripts/build-widget.py
+```
+
+The Ubuntu 24.04 CI image does not supply that Plasma version. Use the Qt 6
+runner path provided by the distribution; an unversioned runner may select Qt 5.
+QML/Plasma runtime verification is recorded separately on the compatible host;
+Python packaging checks, widget archive build and resident/native IPC tests still
+run in CI. The uploaded distribution artifact includes the `.plasmoid` archive.
+Use a private D-Bus session
+and temporary XDG data/config paths for widget protocol/package tests. Do not
+replace the running shell or change the user's panel for automated verification.
+Inspect rendered normal/narrow widgets, light/dark themes and enlarged text;
+real Wayland focus/portal/Orca/user testing remains a separate manual matrix.

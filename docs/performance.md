@@ -102,3 +102,13 @@ stalled dispatcher resumes. Release, finalization, failure and cancel clear pend
 draft data; generation guards discard stale callbacks. Model work and recognizer
 work run off the UI thread, so decode bursts do not block native controls. Drafts
 are display-only and can never create, approve or execute an action.
+
+## Background and desktop controls
+
+Keeping the window hidden preserves the existing controller and prepared local
+model instead of recreating adapters or loading a model for every widget click.
+It also retains the model's memory cost. Quit exits and releases the process;
+Stop revokes live grants without reconnecting automatically. Widget status uses
+the narrow local D-Bus API and does not run speech recognition while idle.
+Background availability does not establish a new speech accuracy/latency result;
+existing end-to-end microphone and intended-user measurements remain required.

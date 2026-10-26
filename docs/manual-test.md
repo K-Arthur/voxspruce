@@ -76,3 +76,22 @@ Back up an intentional v1 configuration, open it in the new app and verify every
 preference survives the atomic v2 migration. Restart with enabled/disabled custom
 shortcuts, edit/delete them, and verify reset removes them while restoring defaults
 and microphone consent off. Never put recordings or private speech in fixtures.
+
+## Background and widget manual matrix
+
+Record desktop/portal/Qt/Plasma versions. On GNOME test launcher and granted
+global Show controls/push-to-talk with the window hidden. On Plasma 6.7+ also
+install/add/remove/update the widget and test cold activation, Practice setup
+guidance, ready Start/Finish, cancellation, Stop and Quit. Confirm no microphone
+on idle/cold launch and no transcript in widget/notifications. Close while
+recording or counting down and verify cancellation. Ensure closing normally
+exits, background closing hides and Quit exits/revokes. Deny/revoke keyboard and
+shortcut grants; remove/restore the app service; verify disabled/error recovery
+and no automatic retry. Check separate custom-settings identity.
+
+Use keyboard and Orca to navigate compact and expanded widget controls; test
+large text, narrow desktop widget, light/dark and high contrast. Verify review
+visibility when the compositor does not allow focus, and use a disposable target
+to verify no confirmation or text delivery is possible from the widget. Real
+voice and intended-user tasks require the person at their PC and consented
+participation; isolated adapter/visual tests do not replace them.

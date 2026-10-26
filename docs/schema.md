@@ -96,3 +96,14 @@ Preferences are not an audit log. Application errors are fixed actionable messag
 at sensitive worker boundaries, so a recognizer or subprocess exception cannot
 accidentally copy speech into logs. Freed Python/native memory and OS swap are not
 securely erased; see [privacy.md](privacy.md).
+
+## Resident desktop controls (transient only)
+
+Background availability is session-only and adds no SQLite preference or schema
+migration. The application holds the current controller while the window is
+hidden; no recognition content or portal grant is persisted. The version 1
+Controls1 status dictionary contains enumerated states and booleans only; its
+exact field and method contract is in [desktop-controls.md](desktop-controls.md).
+The optional D-Bus activation file stores an application executable path, not
+settings, permission tokens or transcripts. Installation does not enable login
+startup.

@@ -27,11 +27,12 @@ jobs:
           GSK_RENDERER: cairo
           GTK_A11Y: test
           GIO_USE_VFS: local
-        run: dbus-run-session -- xvfb-run -a .venv/bin/python -m unittest tests.test_ui_gtk -v
+        run: dbus-run-session -- xvfb-run -a .venv/bin/python -m unittest tests.test_ui_gtk tests.test_app -v
       - name: Actual Gio wire against private fake portal
         run: .venv/bin/python scripts/check-portal-protocol.py
       - name: Build and inspect installed entry point
         run: |
+          .venv/bin/python scripts/build-widget.py
           .venv/bin/python -m build --no-isolation
           python3 -m venv --system-site-packages /tmp/wvc-install
           /tmp/wvc-install/bin/python -m pip install --no-deps dist/*.whl

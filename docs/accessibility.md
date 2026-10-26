@@ -56,3 +56,14 @@ References: [GTK accessibility](https://docs.gtk.org/gtk4/section-accessibility.
 and [WCAG target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum).
 WCAG is used here as a useful interaction reference; this document does not claim
 conformance for a native desktop product.
+
+## Background controls and optional Plasma widget
+
+A session-only background option and explicit Quit keep lifecycle choices
+visible. The widget uses native button semantics, keyboard operation, accessible
+names, wrapping labels and a scrollable expanded layout. Recording status is
+textual as well as graphical; no transcript is sent to shell UI. Its recording
+control supports separate start/finish activations, and Cancel/Stop remain
+available. Review/confirmation remains in the main app. These mechanisms still
+require Orca and intended-user testing on the actual desktop; widget test passes
+are not a broad disability-optimization or TalkBack parity claim.

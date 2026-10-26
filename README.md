@@ -2,7 +2,7 @@
 
 A native GTK4/libadwaita Linux app for offline voice input: speak, review
 the complete result, then explicitly confirm dictation or one exact command.
-MIT licensed. Starts in **Practice**, which uses typed examples and simulated
+MIT licensed. Fresh launches start in **Practice**, which uses typed examples and simulated
 output; it constructs no microphone, desktop portal or live input adapter.
 
 GNOME Wayland is the intended first control target. The native app and automated
@@ -88,10 +88,26 @@ python3 -m venv --system-site-packages .venv
    the visible local countdown. The portal cannot verify the intended field.
 
 Stop remains in the titlebar; Escape cancels. Stop, changing Practice/Live,
-settings changes and exit close live sessions. The microphone stops on release,
+settings changes and Quit close live sessions. Closing the window also closes
+live sessions unless explicit background operation is enabled; hiding cancels
+pending work while retaining completed grants. The microphone stops on release,
 the explicit stop control, cancel, loss of focus for a local capture, or the
 duration cap. Cancel discards content; reconnecting never replays it. An input
 failure may leave partial text; it is reported and never automatically retried.
+
+## Desktop widget and background controls
+
+Enable **Keep available when window closes** to use granted global shortcuts
+while the main window is hidden. **Show controls** or the normal app launcher
+reopens the existing instance. **Quit** stops and exits. Background operation is
+session-only; no wake word or idle microphone capture is added.
+
+An optional native KDE Plasma 6.7+ widget offers status, Open controls,
+Start recording / Finish and review, Cancel, Stop and Quit. After the local
+application install, run `./scripts/install-widget.sh`, then add **Wayland Voice
+Control** with Plasma's Add Widgets interface. Cold activation starts in
+Practice; Live setup remains explicit. See [desktop controls](docs/desktop-controls.md)
+for setup, updates, removal, privacy and GNOME limitations.
 
 ## Commands and custom shortcuts
 
@@ -141,6 +157,7 @@ Unicode, keyboard layouts and destination behavior require real-session testing.
 
 ## Design and evidence
 
+- [Background operation and KDE widget](docs/desktop-controls.md)
 - [Architecture and state flow](docs/architecture.md), [controller API](docs/adapter-api.md), [security and safe initialization](docs/security.md)
 - [SQL/JSON configuration schemas](docs/schema.md), [privacy](docs/privacy.md)
 - [Performance measurements](docs/performance.md), [validation evidence](docs/validation.md)

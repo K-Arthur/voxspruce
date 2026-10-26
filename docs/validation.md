@@ -307,3 +307,79 @@ tests pass, and Ruff, compileall, the private Gio portal protocol check and
 Xvfb; the shared-microphone warning wraps visibly beneath the consent control.
 PipeWire exposed the app identity and capture/communication properties while an
 unlinked `--target=0` recorder was running; no microphone was used.
+
+## Resident desktop controls
+
+The resident lifecycle and Controls1 API were implemented in `1f727f6` and passed
+separate spec and code-quality review. On the CachyOS development host (GTK 4.24,
+Python 3.14), the pure discovery run passed 230 tests with 46 native/optional cases
+skipped; an isolated D-Bus/Xvfb run with GTK tests enabled passed the same 230 tests
+with only three optional Vosk cases skipped. The checks include actual Gio
+cross-connection methods/signals, no-argument protocol rejection, transcript-free
+status, saved-Setup/capture readiness, controller replacement, capture-source
+ownership, normal/background close, second-process activation, cold hidden
+Practice startup and a Quit reply received before clean process exit. Ruff,
+compileall and whitespace checks passed for the change.
+
+A real native screenshot at 560×820 caught a wrapping Quit label; the corrected
+64×44 minimum button uses a single-line label. The enlarged background option
+wraps within the available area, and the Setup section/header show no clipping.
+This was rendered in isolated Xvfb with fake live adapters. It does not establish
+GNOME focus policy, portal grants, real microphone capture or Orca usability.
+
+## KDE widget and final desktop-controls validation
+
+Implementation: `f747fbc`, with the successful-Quit refresh regression fixed in
+`5b67a04`. Final review found a test-only helper registration race;
+`043fa3f` registers that helper synchronously after startup and binds calls to
+the captured unique owner, matching the production bridge. Eight consecutive
+full protocol runs then passed; no production API was changed for the fixture. The old real-portal fixture also exposed its three-binding assumption
+when Show controls added a fourth binding; `deee1f2` checks all four exact IDs,
+returned descriptions and release/repeat filtering on the actual Gio wire.
+
+Fresh final checks on CachyOS, Plasma workspace QML module 6.7.5, Qt/QtTest 6.12.0,
+Python 3.14 and GTK 4.24:
+
+- Pure discovery: **235 tests, 46 skipped**, all remaining cases passed.
+- Full GTK-enabled discovery on private D-Bus/Xvfb: **235 tests, 3 optional Vosk
+  cases skipped**, all remaining cases passed. No host microphone/input used.
+- Native KDE desktop-style Qt Quick Test: **21 passed, no skips**. Covers
+  readiness, duplicate calls, emergency controls during another pending call,
+  typed D-Bus values, stale replies, service loss, version rejection, keyboard and
+  accessible names, compact recording state, native padding and large-text scroll
+  reachability. A successful Quit no longer reads the disappearing service.
+- Real GTK–QML protocol: **3 passed, no skips** (one lifecycle scenario plus
+  setup/cleanup), using actual Controls1 and the installed KDE D-Bus QML module.
+  A separate observer attaches to an already-running service. The private bus
+  activates the app through a launcher whose absolute filename contains spaces,
+  quotes, dollar signs, backticks and backslashes; recording/review use injected
+  fake devices. It verifies cold Practice, Start/Finish/review, Cancel/Stop,
+  crash/restart with a new owner, Quit, activation failure and no idle activation.
+- The actual `.plasmoid` archive installed and upgraded through `kpackagetool6`
+  and loaded in `plasmawindowed`, using temporary XDG directories and a private
+  bus/display. No user panel, login startup or shell was modified.
+- Ruff, compileall, Bash syntax, diff checks and both private protocol checks
+  passed. Wheel/sdist and the deterministic widget archive build passed; all
+  widget metadata/QML and the matching service are included in distributions.
+  A temporary installed-wheel environment verified all five QML files, metadata,
+  the service and CLI help/commands/doctor without creating configuration.
+
+Visual review used the actual native package at 360×500, plus independent
+Wayland own-window captures at 360×520, 240×320 and 320×480 with normal, 200% and
+400% text. Standalone layout captures used Qt's Basic style and explicit
+light/dark palettes; native KDE style was checked separately through QtTest and
+`plasmawindowed`. The compact recording control was also captured through native
+QtTest on Wayland. At 400%, initial action labels were ellipsized; the shared
+wrapped ActionButton fixed them and a regression now checks full labels and
+scroll/click reachability of Quit. Native ScrollView required explicit padding
+on all four sides. No remaining clipping was found in those reviewed layouts.
+Local, ignored evidence files are under `artifacts/`: `widget-plasma-preview.png`,
+`widget-ready-light.png`, `widget-recording-dark.png`, `widget-offline-narrow.png`,
+`widget-practice-large.png`, `widget-400-bottom.png`,
+`widget-compact-recording.png` and `background-setup-560.png`.
+
+These checks establish the implemented widget/lifecycle/protocol behavior in the
+listed environments. They do not establish GNOME panel integration, real portal
+keyboard insertion, physical microphone latency/accuracy, Orca/braille output,
+or usability with disabled participants. The existing manual matrix remains
+required; no TalkBack parity or broad disability-optimization claim is made.

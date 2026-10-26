@@ -7,6 +7,7 @@ desktop target; a supported-desktop claim requires the recorded real-session
 | Environment | Evidence collected | Status |
 | --- | --- | --- |
 | GNOME on Wayland | Standard keyboard portal implementation and protocol tests | Real permission UI, text insertion, Unicode/layouts and microphone workflow **not yet validated** |
+| Plasma 6.7.5 optional panel/desktop widget | Native KDE QML tests, actual package install/update/load and private GTK–QML protocol validated | Widget support only; desktop input/Orca usability still require the manual matrix |
 | CachyOS / KDE Wayland development host | GTK4/libadwaita available; read-only portal discovery advertises keyboard and global shortcuts; local Vosk fixture decoding | Development environment only; **desktop input support not claimed** |
 | Xvfb test display | Used for isolated native-widget verification | No real compositor, microphone or input compatibility evidence |
 | Other KDE, Cinnamon, Sway, Hyprland and other compositors | No recorded run | Untested |
@@ -56,3 +57,12 @@ normal recognition and review then run offline.
 
 See [validation.md](validation.md) for exact test evidence and
 [performance.md](performance.md) for model/host-specific speech measurements.
+
+## Desktop availability and panel integration
+
+Background operation uses GApplication lifecycle and the existing global
+shortcut portal. Portal/backend support and permission are still required. The
+optional panel/desktop widget targets Plasma 6.7+ with the native workspace D-Bus
+QML module. GNOME shell panel integration is separate work; GNOME users have the
+normal launcher and portal shortcuts where supported. Widget rendering does not
+establish compositor keyboard, microphone or Orca compatibility.

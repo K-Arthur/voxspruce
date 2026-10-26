@@ -198,3 +198,11 @@ Live capture, preparation, Connect and global binding controls stay blocked unti
 Save; successful Save requires explicit preparation/reconnection again. The dirty
 form survives Practice/Live switches. Emergency Stop is outside the scrolling
 views; Escape is handled in the window's event-capture phase.
+
+## Desktop control API
+
+The optional `Controls1` interface accepts only zero-argument lifecycle/capture
+methods; GetStatus and StatusChanged expose a versioned allowlist. It cannot
+confirm or submit text, chords, paths or configuration. See the exact bus names,
+method returns, fields, prerequisites and same-user trust boundary in
+[desktop-controls.md](desktop-controls.md).

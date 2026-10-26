@@ -6,8 +6,10 @@
    desktop access. The GUI checks GTK/display availability before opening the
    private settings store.
 2. The first GUI session opens in Practice. Practice constructs no microphone,
-   portal or live-input adapters. A second launch activates the existing
-   application instance, avoiding duplicate capture/shortcut sessions.
+   portal or live-input adapters. A second default launch activates the existing
+   application instance, avoiding duplicate capture/shortcut sessions. Explicit
+   custom-settings paths use separate instances; the widget controls only the
+   default one.
 3. Live setup is deliberately staged: choose a local model, prepare it without
    microphone capture, save microphone consent (off by default), and request
    keyboard/global-shortcut access through desktop portals. A saved preference
@@ -17,8 +19,10 @@
    Input requires reviewing the final result and explicit confirmation; higher
    risk actions need a second confirmation.
 
-The app does not install a background service, autostart listener, wake word,
-cloud fallback, telemetry, or automatic model downloader. Offline use does not
+Ordinary installation does not enable background operation or login startup.
+The optional widget installer explicitly registers on-demand D-Bus activation;
+it starts a hidden Practice instance when requested. There is no wake word,
+cloud fallback, telemetry or automatic model downloader. Offline use does not
 mean setup has no network: Python dependencies and model files are obtained
 separately by the user.
 
@@ -68,3 +72,19 @@ dumps are outside the app's control. This is not secure-memory erasure. See
 This is experimental assistive software, not a security-certified product.
 Security review does not establish compositor compatibility, screen-reader
 quality, speech accuracy or safety for every user and destination application.
+
+## Desktop widget and resident process
+
+The optional Controls1 service exposes only fixed lifecycle/capture methods and
+an allowlisted status map. It exposes no confirmation, arbitrary text/chords,
+settings or permission-grant methods. Calls run on the serialized GTK thread.
+Cold activation starts in Practice; Start requires saved Live setup and existing
+consent, model readiness and keyboard permission. Closing to background cancels
+pending work. Quit shuts down all adapters; there is no automatic reconnect.
+
+The session bus is a same-user trust boundary, not an authenticated widget-only
+channel. Other programs with access to that bus can invoke these fixed methods;
+this feature does not isolate capture controls from malicious same-user code.
+Custom settings instances use separate identities. Installation is explicit,
+per-user and does not change autostart/panel configuration or execute shell
+commands from QML. See [desktop controls](desktop-controls.md).
