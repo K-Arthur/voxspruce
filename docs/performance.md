@@ -71,6 +71,7 @@ run-to-run conditions and is not evidence that isolation improves decoding.
 | Unpaced 2 | 1.588 | 3.450 | 0.415 | 10.18 | 193.76 | 817.81 | 64.92 | — |
 | Paced | 1.753 | 2.176 | 0.262 | 7.59 | 107.26 | 644.45 | 44.62 | 644.55 |
 | Unpaced, isolated CLI recheck | 0.786 | 1.480 | 0.178 | 5.69 | 69.63 | 439.64 | 26.14 | — |
+| Final lifecycle-audit paced recheck | 0.763 | 1.797 | 0.216 | 6.70 | 122.11 | 434.73 | 35.69 | 434.82 |
 | Independent paced recheck | 1.519 | 1.881 | 0.226 | 7.12 | 127.08 | 407.04 | 39.00 | 407.12 |
 | Sustained replay, unpaced (58.156 s) | 1.052 | 4.004 | 0.069 | 6.58 | 27.66 | 386.50 | 25.10 | — |
 | Sustained replay, paced (58.156 s) | 0.650 | 4.760 | 0.082 | 7.79 | 29.09 | 383.17 | 27.68 | 383.27 |

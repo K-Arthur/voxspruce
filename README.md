@@ -160,6 +160,7 @@ Unicode, keyboard layouts and destination behavior require real-session testing.
 - [Background operation and KDE widget](docs/desktop-controls.md)
 - [Architecture and state flow](docs/architecture.md), [controller API](docs/adapter-api.md), [security and safe initialization](docs/security.md)
 - [SQL/JSON configuration schemas](docs/schema.md), [privacy](docs/privacy.md)
+- [Scope and release readiness](docs/release-readiness.md)
 - [Performance measurements](docs/performance.md), [validation evidence](docs/validation.md)
 - [Compatibility limits](docs/compatibility.md), [GNOME manual kill test](docs/manual-test.md)
 - [Accessibility target and verification](docs/accessibility.md) (no TalkBack parity or broad optimization claim)

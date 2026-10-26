@@ -395,3 +395,49 @@ including installed entry-point checks and distribution upload. The source
 worktree was removed after copying local visual evidence to the main checkout's
 ignored `artifacts/` directory. The main checkout retains the built `.plasmoid`,
 wheel and sdist in ignored `dist/`.
+
+
+## Portal lifecycle and actual accessibility transport follow-up
+
+The full-system audit reproduced two additional implementation faults, then
+observed failing regressions before fixes: service disappearance left keyboard
+permission/bindings apparently active, and `ShortcutsChanged` never updated
+returned bindings. Commits `aa26c0f` and `a7eaebe` invalidate requests/sessions on
+portal owner loss or direct replacement, reject stale grants, suppress cleanup
+and input autoactivation, and merge the portal's partial binding updates. A
+binding change cancels held global/pending work without synthesizing confirmation
+or stopping an unrelated local/widget recording. Omission from a partial update
+does not establish removal. Explicit reconnect/review is required after loss.
+
+Fresh native/private-bus discovery passed **249 tests, no skips**, using the
+already installed Vosk environment and local public model fixture. The existing
+model directory was temporarily linked for fixture reads and the link removed afterward;
+no microphone or host keyboard input was used. The default environment without
+the speech dependency still runs the pure suite with its documented optional
+skips. The extended actual Gio fixture passes owner disappearance, direct
+replacement, pending-session loss and late responses, as well as partial binding
+updates and held-confirm suppression. Native Qt Quick tests pass **21 tests**;
+actual GTK/widget protocol passes **3 tests**. Ruff, compileall, shell syntax,
+widget archive and Python wheel/sdist builds pass.
+
+Commit `a59d9f2` adds `scripts/check-accessibility.py`. Unlike `GTK_A11Y=test`, it
+uses real GTK AT-SPI export and libatspi interfaces on an activation-free private
+D-Bus with an explicitly launched registry and Xvfb. It checks selected names,
+roles, disabled capture/default consent, complete synthetic Practice text,
+edit/re-review approval invalidation, simulated dictation, custom shortcut
+creation and separate risky approval/cancel, Setup headings and accessible Quit.
+The completed script passed three consecutive runs and a final recheck. GTK can
+replace command rows during traversal; bounded lookups retry stale remote object
+paths, while actions are never automatically retried. CI runs this check with
+distribution AT-SPI dependencies. This supersedes the earlier transport-testing
+limitation for these isolated Practice paths; no Orca, braille, switch-scanning or
+intended-user usability result follows.
+
+A new paced public-fixture benchmark measured model load 0.763 s, decode 1.797 s
+for 8.308 s of audio, realtime factor 0.216, 434.82 ms maximum replay lag and
+35.69 ms finalization. This is repeatable decoder evidence, not a physical
+microphone latency or accent/speech-disability accuracy result. See performance.md.
+The shortcut-change status was visually checked in the rendered 560×820 native
+window; its instructions wrap without clipping and Stop/Quit remain visible.
+The delayed user report that windows opened/closed did not confirm the requested
+scratch-field text, so live insertion remains unverified.
