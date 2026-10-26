@@ -68,22 +68,30 @@ Independent paced benchmark recheck using the committed shared decoder: 8.308 se
 
 ## Accessibility controls and headless visual check
 
-GTK/Xvfb tests now exercise programmatic labels, a GTK status role with state
-announcements that omit transcript content, and the Live start/stop alternative
-for people who cannot sustain a press. The alternative cancels while microphone
-startup is pending, finishes with a second activation after recording starts,
-and cancels if the app loses focus. Both recording controls use the configured
-duration cap. These checks validate widget behavior and the announcement API;
-they do not establish usability with Orca or another assistive technology.
+GTK/Xvfb tests exercise programmatic labels, GTK widget roles, named section
+groups, levelled headings, a status role with state announcements that omit
+transcript content, and the Live start/stop alternative for people who cannot
+sustain a press. A role-isolation regression test guards against assigning the
+status role to ordinary labels. The alternative cancels during microphone
+startup, finishes with a second activation after recording starts, and cancels if
+the app loses focus. An XTest Space press/release test also starts and stops the
+control through the real GTK keyboard event route. Both recording controls use
+the configured duration cap.
+These tests use `GTK_A11Y=test`; they validate GTK's test backend and announcement
+API, not AT-SPI transport or Orca output.
 
 The updated Live Voice view was visually checked under Xvfb at 780×820 and
 550×820. At the compact width, instructions wrap cleanly, the new start/stop
 control remains fully visible, and review content continues below in the
-scrollable view. Baseline default/compact enlarged-text captures are retained in
-the ignored development artifacts. Actual screen-reader output, high-contrast theme
-behavior, switch access, speech accessibility with disabled users, and usability
-with intended users remain open manual validation items. No broad claim that the
-app is optimized for disabled people or conforms to WCAG follows from these tests.
+scrollable view. Latest captures and baseline enlarged-text screenshots are in
+the ignored `.worktrees/implementation/artifacts/ui/` development directory. The
+isolated Xvfb session could not connect to
+the user's AT-SPI registry; no Orca executable is installed in this environment.
+Actual screen-reader speech/braille, high-contrast behavior, switch access, speech
+accessibility with disabled users, and usability with intended users remain open
+manual validation items. See [accessibility.md](accessibility.md) for the target
+matrix and claim boundary. No broad claim that the app is optimized for disabled
+people or conforms to WCAG follows from these tests.
 
 
 ## Native diagnostic regression

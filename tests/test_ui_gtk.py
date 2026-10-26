@@ -308,6 +308,65 @@ class NativeWindowTests(unittest.TestCase):
                     )
                 )
 
+    def test_screen_reader_can_navigate_named_sections_and_headings(self):
+        from gi.repository import Gtk
+
+        voice_group = self.window.status.get_parent()
+        voice_heading = voice_group.get_first_child()
+        self.assertEqual(
+            self.window.status.get_accessible_role(), Gtk.AccessibleRole.STATUS
+        )
+        self.assertEqual(
+            self.window.mode_status.get_accessible_role(), Gtk.AccessibleRole.LABEL
+        )
+        self.assertEqual(
+            voice_heading.get_accessible_role(), Gtk.AccessibleRole.HEADING
+        )
+        self.assertTrue(
+            Gtk.test_accessible_has_property(
+                voice_heading, Gtk.AccessibleProperty.LEVEL
+            )
+        )
+        self.assertEqual(
+            voice_group.get_accessible_role(), Gtk.AccessibleRole.GROUP
+        )
+        self.assertTrue(
+            Gtk.test_accessible_has_property(
+                voice_group, Gtk.AccessibleProperty.LABEL
+            )
+        )
+        self.assertEqual(
+            self.window.practice_entry.get_accessible_role(),
+            Gtk.AccessibleRole.TEXT_BOX,
+        )
+        self.assertEqual(
+            self.window.practice_switch.get_accessible_role(),
+            Gtk.AccessibleRole.CHECKBOX,
+        )
+        self.assertEqual(
+            self.window.toggle_capture_button.get_accessible_role(),
+            Gtk.AccessibleRole.BUTTON,
+        )
+        self.assertEqual(
+            self.window.model_path.get_parent().get_accessible_role(),
+            Gtk.AccessibleRole.GROUP,
+        )
+        self.assertTrue(
+            Gtk.test_accessible_has_property(
+                self.window.model_path.get_parent(), Gtk.AccessibleProperty.LABEL
+            )
+        )
+        self.assertTrue(
+            Gtk.test_accessible_has_state(
+                self.window.practice_switch, Gtk.AccessibleState.CHECKED
+            )
+        )
+        self.assertTrue(
+            Gtk.test_accessible_has_state(
+                self.window.toggle_capture_button, Gtk.AccessibleState.DISABLED
+            )
+        )
+
     def test_status_is_announced_to_screen_readers_without_reading_transcript(self):
         from gi.repository import Gtk
 
@@ -474,6 +533,70 @@ class NativeWindowTests(unittest.TestCase):
 
     def test_real_space_release_in_external_window_allows_a_new_hold(self):
         self._assert_real_space_release_after_cap(external=True)
+
+    def test_live_start_stop_control_works_with_real_keyboard_activation(self):
+        import ctypes
+        import ctypes.util
+        from dataclasses import replace
+
+        from gi.repository import Gdk, GLib
+
+        x11 = ctypes.CDLL(ctypes.util.find_library("X11"))
+        xtst = ctypes.CDLL(ctypes.util.find_library("Xtst"))
+        x11.XOpenDisplay.restype = ctypes.c_void_p
+        x11.XKeysymToKeycode.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+        x11.XKeysymToKeycode.restype = ctypes.c_uint
+        x11.XFlush.argtypes = [ctypes.c_void_p]
+        x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+        xtst.XTestFakeKeyEvent.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_uint,
+            ctypes.c_int,
+            ctypes.c_ulong,
+        ]
+        display = x11.XOpenDisplay(None)
+        self.assertTrue(display)
+
+        def pump():
+            loop = GLib.MainLoop()
+            GLib.timeout_add(80, lambda: loop.quit() or False)
+            loop.run()
+
+        self.window.practice_switch.set_active(False)
+        controller = self.window.controller
+        controller._model_readiness = "ready"
+        controller.settings = replace(controller.settings, microphone_consent=True)
+        controller._workflow.set_microphone_consent(True)
+        controller.connect()
+        controller.remote.grant()
+        self.window.present()
+        pump()
+        self.window.toggle_capture_button.grab_focus()
+        pump()
+        code = x11.XKeysymToKeycode(display, Gdk.KEY_space)
+        try:
+            xtst.XTestFakeKeyEvent(display, code, True, 0)
+            x11.XFlush(display)
+            pump()
+            xtst.XTestFakeKeyEvent(display, code, False, 0)
+            x11.XFlush(display)
+            pump()
+            self.assertEqual(controller.snapshot.state, State.RECORDING)
+
+            controller.audio.callbacks["on_activity"]("recording")
+            xtst.XTestFakeKeyEvent(display, code, True, 0)
+            x11.XFlush(display)
+            pump()
+            xtst.XTestFakeKeyEvent(display, code, False, 0)
+            x11.XFlush(display)
+            pump()
+            self.assertEqual(controller.snapshot.state, State.PROCESSING)
+        finally:
+            xtst.XTestFakeKeyEvent(display, code, False, 0)
+            x11.XFlush(display)
+            pump()
+            controller.cancel()
+            x11.XCloseDisplay(display)
 
     def _assert_real_space_release_after_cap(self, *, external):
         import ctypes

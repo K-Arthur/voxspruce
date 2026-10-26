@@ -33,6 +33,49 @@ def label(text="", *, title=False):
     return widget
 
 
+class AccessibleHeading(Gtk.Label):
+    """A heading role isolated to headings rather than every Gtk.Label."""
+
+    __gtype_name__ = "WvcAccessibleHeading"
+
+    def __init__(self, text, *, level=2):
+        super().__init__(
+            label=text,
+            xalign=0,
+            wrap=level >= 2,
+            wrap_mode=Pango.WrapMode.WORD_CHAR,
+        )
+        if hasattr(Gtk.AccessibleRole, "HEADING"):
+            self.set_accessible_role(Gtk.AccessibleRole.HEADING)
+        if hasattr(Gtk.AccessibleProperty, "LEVEL"):
+            self.update_property([Gtk.AccessibleProperty.LEVEL], [level])
+        if level >= 2:
+            self.add_css_class("title-2")
+
+
+class AccessibleStatus(Gtk.Label):
+    """A status role isolated to the live status label."""
+
+    __gtype_name__ = "WvcAccessibleStatus"
+
+    def __init__(self):
+        super().__init__(xalign=0, wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR)
+        if hasattr(Gtk.AccessibleRole, "STATUS"):
+            self.set_accessible_role(Gtk.AccessibleRole.STATUS)
+
+
+class AccessibleGroup(Gtk.Box):
+    """A named semantic group used for each labelled UI section."""
+
+    __gtype_name__ = "WvcAccessibleGroup"
+
+    def __init__(self, title):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        if hasattr(Gtk.AccessibleRole, "GROUP"):
+            self.set_accessible_role(Gtk.AccessibleRole.GROUP)
+        self.update_property([Gtk.AccessibleProperty.LABEL], [title])
+
+
 def button(text, callback, *, primary=False):
     widget = Gtk.Button(height_request=44)
     widget.set_child(
@@ -60,8 +103,8 @@ def checkbox(label, active=False):
 
 
 def section(parent, title, description=""):
-    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-    box.append(label(title, title=True))
+    box = AccessibleGroup(title)
+    box.append(AccessibleHeading(title))
     if description:
         box.append(label(description))
     parent.append(box)
@@ -122,7 +165,7 @@ class VoiceWindow(Adw.ApplicationWindow):
     def _build(self):
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         header = Adw.HeaderBar()
-        header.set_title_widget(Gtk.Label(label="Wayland Voice Control"))
+        header.set_title_widget(AccessibleHeading("Wayland Voice Control", level=1))
         self.stop_button = button("Stop", self.stop_action)
         self.stop_button.set_icon_name("process-stop-symbolic")
         self.stop_button.set_label("Stop")
@@ -173,10 +216,8 @@ class VoiceWindow(Adw.ApplicationWindow):
         modes.append(self.command_mode)
         self.readiness = label()
         modes.append(self.readiness)
-        self.status = label()
+        self.status = AccessibleStatus()
         self.status.add_css_class("heading")
-        if hasattr(Gtk.AccessibleRole, "STATUS"):
-            self.status.set_accessible_role(Gtk.AccessibleRole.STATUS)
         modes.append(self.status)
         self.practice_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         self.practice_entry = entry(

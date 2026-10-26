@@ -143,6 +143,7 @@ Unicode, keyboard layouts and destination behavior require real-session testing.
 - [SQL/JSON configuration schemas](docs/schema.md), [privacy](docs/privacy.md)
 - [Performance measurements](docs/performance.md), [validation evidence](docs/validation.md)
 - [Compatibility limits](docs/compatibility.md), [GNOME manual kill test](docs/manual-test.md)
+- [Accessibility target and verification](docs/accessibility.md) (no TalkBack parity or broad optimization claim)
 - [Development, CI and distribution](docs/development.md)
 - [Source-linked research](docs/research.md), [Vibe data-availability report](docs/vibe-data-availability.md)
 - [Implementation plan](docs/superpowers/plans/2026-10-25-wayland-voice-control.md)

@@ -49,8 +49,10 @@ normal recognition and review then run offline.
 - Capture offers both a held push-to-talk control and an explicit start/stop
   control. There is no wake word, always-listening mode or universal hands-free
   access claim.
-- Automated native widget tests do not establish Orca usability or accessibility
-  standards compliance. Testing with intended voice-input users remains open.
+- Automated GTK accessibility-backend tests cover selected roles, names, status
+  announcements, headings and named groups. They do not establish AT-SPI transport,
+  Orca speech/braille usability or accessibility standards compliance. Testing with
+  intended voice-input users remains open; see [accessibility.md](accessibility.md).
 
 See [validation.md](validation.md) for exact test evidence and
 [performance.md](performance.md) for model/host-specific speech measurements.
