@@ -101,11 +101,20 @@ def method(connection, sender, path, interface, method, parameters, invocation):
             )
             result = {"session_handle": GLib.Variant("s", session)}
         elif method == "SelectDevices":
-            assert options["types"] == 1 and options["persist_mode"] == 0
+            assert options["types"] == 1 and options["persist_mode"] == 0, (
+                f"Expected keyboard-only, nonpersistent access options; received {options!r}"
+            )
         elif method == "Start":
             result = {"devices": GLib.Variant("u", 1)}
         elif method == "BindShortcuts":
-            assert len(args[1]) == 3
+            expected_ids = {"hold_to_talk", "confirm", "cancel", "show_controls"}
+            requested_ids = [key for key, _ in args[1]]
+            assert set(requested_ids) == expected_ids, (
+                f"Expected shortcut IDs {sorted(expected_ids)!r}; received {requested_ids!r}"
+            )
+            assert len(requested_ids) == len(expected_ids), (
+                f"Expected each shortcut ID once; received {requested_ids!r}"
+            )
             result = {
                 "shortcuts": GLib.Variant(
                     "a(sa{sv})",
@@ -152,8 +161,10 @@ shortcuts = GlobalShortcuts(
 
 def finish():
     try:
-        assert not remote.granted
-        assert len(events) == 6, events
+        assert not remote.granted, (
+            "Remote keyboard grant survived portal session closure"
+        )
+        assert len(events) == 6, f"Expected six Unicode key events; received {events!r}"
         assert [e[2:] for e in events] == [
             (ord("H"), 1),
             (ord("H"), 0),
@@ -161,13 +172,21 @@ def finish():
             (0x010003BB, 0),
             (ord("."), 1),
             (ord("."), 0),
-        ]
+        ], f"Unexpected Unicode keysym press/release sequence: {events!r}"
         assert shortcut_events == [
             ("hold_to_talk", True),
             ("hold_to_talk", False),
             ("confirm", False),
-        ], shortcut_events
-        assert shortcuts.bindings["confirm"] == "Assigned confirm"
+            ("show_controls", False),
+        ], (
+            f"Unexpected shortcut events (Show controls must fire once on release): {shortcut_events!r}"
+        )
+        assert shortcuts.bindings["confirm"] == "Assigned confirm", (
+            f"Unexpected confirm binding description: {shortcuts.bindings!r}"
+        )
+        assert shortcuts.bindings["show_controls"] == "Assigned show_controls", (
+            f"Missing Show controls binding description: {shortcuts.bindings!r}"
+        )
         print(
             "PASS: real Gio async requests, early Response signals, keyboard-only options, Unicode key events, shortcut events and revocation on isolated D-Bus"
         )
@@ -188,6 +207,11 @@ def shortcuts_bound(ok, error):
         ("Deactivated", "confirm"),
         ("Activated", "confirm"),
         ("Deactivated", "confirm"),
+        ("Deactivated", "show_controls"),  # Unpaired release is ignored.
+        ("Activated", "show_controls"),
+        ("Activated", "show_controls"),  # Repeated press is ignored.
+        ("Deactivated", "show_controls"),
+        ("Deactivated", "show_controls"),  # Repeated release is ignored.
     ]:
         bus.emit_signal(
             None,
