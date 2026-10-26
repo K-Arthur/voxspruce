@@ -1,7 +1,23 @@
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from wayland_voice_control.audio import AudioCapture, AudioError
+from wayland_voice_control.audio import AudioCapture, AudioError, spawn_recorder
+
+
+class RecorderIntegrationTests(unittest.TestCase):
+    def test_pipewire_stream_is_identified_as_voice_communication_capture(self):
+        with patch("wayland_voice_control.audio.subprocess.Popen") as popen:
+            spawn_recorder()
+
+        command = popen.call_args.args[0]
+        self.assertIn("--media-type=Audio", command)
+        self.assertIn("--media-category=Capture", command)
+        self.assertIn("--media-role=Communication", command)
+        properties = command[command.index("--properties") + 1]
+        self.assertIn('"application.name":"Wayland Voice Control"', properties)
+        self.assertIn('"media.name":"Voice Control microphone capture"', properties)
+        self.assertIs(popen.call_args.kwargs["shell"], False)
 
 
 class Process:

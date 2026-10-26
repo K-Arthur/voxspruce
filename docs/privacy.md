@@ -14,15 +14,17 @@ The RemoteDesktop portal requests keyboard control. The desktop presents its own
 
 The app uses PipeWire capture after its own explicit mic-consent step. This step is an application setting, not a claim that Linux exposes a universal microphone-consent portal. The operating system's own audio/device restrictions continue to apply.
 
+PipeWire capture is shared audio routing, not an exclusive microphone lease. Another permitted voice-typing or meeting app can receive the same microphone concurrently. PipeWire's session manager routes capture streams based on their stream/device metadata ([capture stream and linking policy](https://pipewire.pages.freedesktop.org/wireplumber/policies/linking.html)). This app labels its stream as `Wayland Voice Control` with the `Communication` role so desktop audio tools can identify it; it does not stop or enumerate other apps. Pause other voice/dictation apps when duplicate recognition or unintended capture would be a problem, and use the desktop microphone indicator where available.
+
 Optional read-back pipes only the currently reviewed action to local espeak-ng stdin, never through command arguments, a shell or a file. Cancelling, editing, confirming, replacing an action, changing settings/mode or quitting terminates that read-back process.
 
-Global shortcuts use the desktop portal and its consent UI. The app does not monitor arbitrary keys. Users may decline this permission and use the local controls.
+Global shortcuts use the desktop portal and its consent UI. The portal may return only a subset when a requested trigger is unavailable or not accepted ([GlobalShortcuts portal](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.GlobalShortcuts.html)). Setup lists every requested binding and marks missing ones as unbound; use the local controls for those actions. The app does not monitor arbitrary keys. Users may decline this permission and use the local controls.
 
 ## Confirmation and limits
 
 Dictation and command modes are separate. Every action is reviewed and confirmed; commands capable of submission or destruction and all custom shortcuts require another distinct confirmation. Dictation cannot contain injected Enter/Tab or other control characters. Unknown commands are rejected. Confirmations expire and are single-use, and starting an edit invalidates previous approval immediately, even while the editor is empty or invalid. Re-review explicitly creates new approval work. Custom shortcut changes cancel current capture, edits, approvals and countdowns.
 
-The portal cannot attest which application's field receives input. The user chooses the destination. App-specific keyboard behavior, clipboard contents, focus changes and partial failures remain relevant: this software does not claim that an approved action can never have unintended effects. A failed insertion must not be retried automatically.
+The portal cannot attest which application's field receives input. The user chooses the destination. Another voice-control tool may also inject into the focused app; pause it before confirming here to avoid competing input. App-specific keyboard behavior, clipboard contents, focus changes and partial failures remain relevant: this software does not claim that an approved action can never have unintended effects. A failed insertion must not be retried automatically.
 
 This is an experimental community tool, not certified assistive technology. The GNOME compatibility test and accessibility testing with intended users are required before a stable support claim.
 

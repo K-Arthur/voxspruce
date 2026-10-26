@@ -706,9 +706,22 @@ class NativeWindowTests(unittest.TestCase):
             shortcut_bindings={"hold_to_talk": "Control+F8 (desktop assigned)"},
         )
         self.window.render(snapshot)
+        status = self.window.bindings_status.get_text()
         self.assertIn(
-            "Control+F8 (desktop assigned)", self.window.bindings_status.get_text()
+            "Control+F8 (desktop assigned)", status
         )
+        self.assertIn("Confirm reviewed action: Not bound", status)
+        self.assertIn("Cancel action: Not bound", status)
+
+    def test_no_shortcut_grants_marks_all_local_fallbacks(self):
+        status = self.window.bindings_status.get_text()
+        self.assertIn("No granted global bindings", status)
+        self.assertIn("Hold to talk: Not bound", status)
+        self.assertIn("Confirm reviewed action: Not bound", status)
+        self.assertIn("Cancel action: Not bound", status)
+
+    def test_setup_explains_shared_microphone_conflicts(self):
+        self.assertIn("PipeWire may share", self.window.capture_sharing_status.get_text())
 
     def test_choice_labels_wrap_in_compact_views(self):
         from gi.repository import Gtk

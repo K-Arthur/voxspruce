@@ -66,7 +66,9 @@ python3 -m venv --system-site-packages .venv
    (default off), and Save. Any Setup edit immediately pauses live input, revokes
    runtime microphone consent and closes live grants. Unsaved changes block
    preparation/reconnection/global bindings until Save. Save still requires
-   explicit preparation and reconnecting.
+   explicit preparation and reconnecting. PipeWire can share a microphone with
+   other apps, so pause competing voice/dictation tools when you do not want
+   duplicate capture.
 4. Click **Prepare saved model** and wait for **ready**. This loads locally without
    opening the mic. Idle/loading/error cannot start live capture, including through
    global shortcuts. A typical small model needs about 300 MB of runtime memory;

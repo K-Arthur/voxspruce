@@ -288,3 +288,22 @@ GTK tests pass under Xvfb/D-Bus; Ruff, compileall, YAML structure/permission
 checks and `git diff --check` pass. The GTK suite validates widgets and startup
 factory isolation; it does not launch two separately registered desktop app
 processes or verify behavior in a real GNOME session.
+
+## Coexistence with other voice applications
+
+The capture stream is now explicitly categorized as PipeWire `Audio/Capture`
+with the `Communication` role and carries the application and stream names
+`Wayland Voice Control` and `Voice Control microphone capture`. A PipeWire graph
+check using `--target=0` confirmed these properties without linking a microphone.
+Setup warns that capture is shared and advises pausing other voice/dictation
+apps. Partial portal shortcut grants now show every missing action as unbound
+with a local-control fallback. The manual checklist covers simultaneous audio
+capture, shortcut conflicts and interleaved keyboard input; those real-app
+conflict cases still require validation in a desktop session.
+
+Fresh validation: 214 Python tests pass (34 expected skips), all 31 isolated GTK
+tests pass, and Ruff, compileall, the private Gio portal protocol check and
+`git diff --check` pass. The Setup view was visually inspected at 780×900 under
+Xvfb; the shared-microphone warning wraps visibly beneath the consent control.
+PipeWire exposed the app identity and capture/communication properties while an
+unlinked `--target=0` recorder was running; no microphone was used.

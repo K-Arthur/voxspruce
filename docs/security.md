@@ -47,6 +47,13 @@ dumps are outside the app's control. This is not secure-memory erasure. See
 - Desktop consent authorizes a capability; it does not prove which window or
   field has focus. A confirmed key chord can therefore affect an unexpected
   destination if focus changes. The app cannot verify the receiving app.
+- Microphone capture is shared through PipeWire. Other permitted voice apps can
+  listen at the same time, so the user should pause competing dictation when
+  duplicate capture is undesirable. Another voice-control app can also inject
+  keyboard input into the focused application; pause it before confirming here
+  to prevent interleaved input. Global shortcut ownership is desktop managed;
+  the portal can return only accepted bindings, and unbound actions remain
+  available through the app's local controls.
 - The optional `espeak-ng` process receives only the reviewed action through
   stdin. Capture and speech subprocesses use fixed argument arrays, no shell,
   bounded lifetimes and sanitized app-authored errors. Python documents that

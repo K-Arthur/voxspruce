@@ -41,7 +41,22 @@ def make_recognizer(model):
 
 def spawn_recorder():
     return subprocess.Popen(
-        ["pw-record", "--rate=16000", "--channels=1", "--format=s16", "--raw", "-"],
+        [
+            "pw-record",
+            "--media-type=Audio",
+            "--media-category=Capture",
+            "--media-role=Communication",
+            "--properties",
+            (
+                '{"application.name":"Wayland Voice Control",'
+                '"media.name":"Voice Control microphone capture"}'
+            ),
+            "--rate=16000",
+            "--channels=1",
+            "--format=s16",
+            "--raw",
+            "-",
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         shell=False,

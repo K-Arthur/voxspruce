@@ -404,6 +404,10 @@ class VoiceWindow(Adw.ApplicationWindow):
             label="I allow microphone capture after I explicitly start it"
         )
         consent.append(self.mic_consent)
+        self.capture_sharing_status = label(
+            "PipeWire may share this microphone with other apps. Pause other voice/dictation apps to avoid duplicate capture; check your desktop microphone indicator when available."
+        )
+        consent.append(self.capture_sharing_status)
         self.focus_delay = Gtk.SpinButton.new_with_range(2, 10, 1)
         consent.append(label("Destination selection countdown (2–10 seconds)"))
         self.focus_delay.update_property(
@@ -443,6 +447,7 @@ class VoiceWindow(Adw.ApplicationWindow):
             "3 · Desktop keyboard permission",
             "In Live mode, connect explicitly and approve the desktop portal. "
             "Capability support does not mean permission has been granted. "
+            "Keyboard input goes to the currently focused app; pause other voice-control tools before confirming to avoid competing input. "
             "Stop, mode switches and settings changes close the live sessions.",
         )
         self.connect_button = button(
@@ -1017,12 +1022,26 @@ class VoiceWindow(Adw.ApplicationWindow):
                     else "Keyboard permission not granted. Portal capability alone is not permission."
                 )
             )
+            binding_names = {
+                "hold_to_talk": "Hold to talk",
+                "confirm": "Confirm reviewed action",
+                "cancel": "Cancel action",
+            }
+            binding_header = (
+                "Granted bindings and local fallbacks:"
+                if snapshot.shortcut_bindings
+                else "No granted global bindings. Local controls remain available:"
+            )
             self.bindings_status.set_text(
                 "\n".join(
-                    f"{name}: {trigger}"
-                    for name, trigger in snapshot.shortcut_bindings.items()
+                    [
+                        binding_header,
+                        *(
+                            f"{label}: {snapshot.shortcut_bindings.get(name, 'Not bound; use local control')}"
+                            for name, label in binding_names.items()
+                        ),
+                    ]
                 )
-                or "No granted global bindings. Local controls remain available."
             )
             if snapshot.state is not State.RECORDING:
                 self._held = False
