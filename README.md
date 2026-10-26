@@ -139,7 +139,7 @@ Unicode, keyboard layouts and destination behavior require real-session testing.
 
 ## Design and evidence
 
-- [Architecture and state flow](docs/architecture.md), [controller API](docs/adapter-api.md)
+- [Architecture and state flow](docs/architecture.md), [controller API](docs/adapter-api.md), [security and safe initialization](docs/security.md)
 - [SQL/JSON configuration schemas](docs/schema.md), [privacy](docs/privacy.md)
 - [Performance measurements](docs/performance.md), [validation evidence](docs/validation.md)
 - [Compatibility limits](docs/compatibility.md), [GNOME manual kill test](docs/manual-test.md)

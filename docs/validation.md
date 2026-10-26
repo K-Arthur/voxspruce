@@ -272,3 +272,19 @@ boundaries make it a throughput stress check, not representative speech or
 accuracy evidence. See [performance.md](performance.md) for chunk timings and
 measurement limits. Physical microphone end-to-end latency and recognition
 accuracy remain unverified.
+
+## Initialization and CI hardening
+
+The GUI now relies on default single-instance `Adw.Application` behavior so
+repeated launches activate the existing window rather than creating parallel
+microphone/shortcut sessions. GitHub CI explicitly grants `contents: read`,
+checkout does not persist credentials, and checkout/artifact actions are pinned
+to verified full commit SHAs with Dependabot update checks. Safe startup and
+remaining trust boundaries are documented in [security.md](security.md).
+
+Validation on 25 October 2026: 211 Python tests pass (32 expected skips for
+opt-in GTK and unavailable optional Vosk/model fixtures); all 29 isolated native
+GTK tests pass under Xvfb/D-Bus; Ruff, compileall, YAML structure/permission
+checks and `git diff --check` pass. The GTK suite validates widgets and startup
+factory isolation; it does not launch two separately registered desktop app
+processes or verify behavior in a real GNOME session.

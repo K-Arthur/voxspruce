@@ -11,7 +11,7 @@ def main(*, settings_path=None):
 
         gi.require_version("Gtk", "4.0")
         gi.require_version("Adw", "1")
-        from gi.repository import Adw, Gio, Gtk
+        from gi.repository import Adw, Gtk
 
         from .window import VoiceWindow
     except (ImportError, ValueError):
@@ -32,7 +32,6 @@ def main(*, settings_path=None):
         def __init__(self):
             super().__init__(
                 application_id="io.github.wayland_voice_control",
-                flags=Gio.ApplicationFlags.NON_UNIQUE,
             )
             self.window = None
             self.failed = False
