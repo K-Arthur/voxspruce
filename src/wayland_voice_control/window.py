@@ -64,13 +64,6 @@ class AccessibleStatus(Gtk.Label):
             wrap=True,
             wrap_mode=Pango.WrapMode.WORD_CHAR,
         )
-        # Older GTK bridges do not derive a STATUS name from Gtk.Label text.
-        # Listen to the property so direct error/status updates stay in sync too.
-        self.connect("notify::label", self._sync_accessible_label)
-        self._sync_accessible_label()
-
-    def _sync_accessible_label(self, *_):
-        self.update_property([Gtk.AccessibleProperty.LABEL], [self.get_text()])
 
 
 class AccessibleGroup(Gtk.Box):
