@@ -205,14 +205,17 @@ class GlobalShortcuts:
         "show_controls": ("Show controls", "CTRL+ALT+v"),
     }
 
-    def __init__(self, transport, on_event, *, on_closed=None):
+    def __init__(self, transport, on_event, *, on_closed=None, on_changed=None):
         self.transport = transport
         self.on_event = on_event
+        self.on_changed = on_changed or (lambda keys: None)
         self.on_closed = on_closed or (lambda: None)
         self.bindings = {}
         self._session = None
         self._signals = []
         self._pressed = set()
+        self._blocked = set()
+        self._ready = False
         self._generation = 0
         self._cancel_request = None
 
@@ -259,9 +262,19 @@ class GlobalShortcuts:
                         SHORTCUTS,
                         signal,
                         None,
-                        lambda values, name=signal: self._event(name, values),
+                        lambda values, name=signal: self._event(
+                            name, values, generation
+                        ),
                     )
                 )
+            self._signals.append(
+                self.transport.subscribe(
+                    SHORTCUTS,
+                    "ShortcutsChanged",
+                    None,
+                    lambda values: self._changed(values, generation),
+                )
+            )
             self._signals.append(
                 self.transport.subscribe(
                     SESSION, "Closed", session, lambda *_: self._closed(generation)
@@ -281,11 +294,8 @@ class GlobalShortcuts:
             )
 
         def bound(results):
-            self.bindings = {
-                key: details.get("trigger_description", "")
-                for key, details in results.get("shortcuts", [])
-                if key in self.PREFERRED
-            }
+            self.bindings = self._binding_details(results.get("shortcuts", []))
+            self._ready = True
             callback(True, None)
 
         token = "wvc_" + uuid4().hex
@@ -300,9 +310,59 @@ class GlobalShortcuts:
             response(created),
         )
 
-    def _event(self, signal, values):
+    def _binding_details(self, entries):
+        bindings = {}
+        if not isinstance(entries, (list, tuple)):
+            return bindings
+        for entry in entries:
+            if not isinstance(entry, (list, tuple)) or len(entry) != 2:
+                continue
+            key, details = entry
+            if (
+                not isinstance(key, str)
+                or key not in self.PREFERRED
+                or not isinstance(details, dict)
+            ):
+                continue
+            description = details.get("trigger_description", "")
+            if isinstance(description, str):
+                bindings[key] = description
+        return bindings
+
+    def _changed(self, values, generation):
+        if generation != self._generation or not self._ready:
+            return
+        if not isinstance(values, (list, tuple)) or len(values) != 2:
+            return
+        session, entries = values
+        if session != self._session:
+            return
+        changed = self._binding_details(entries)
+        if not changed:
+            return
+        # ShortcutsChanged is a partial update, not a complete granted set.
+        self.bindings.update(changed)
+        # Never turn a binding change into a synthetic confirm/release. Held
+        # keys must physically release and be pressed again before another action.
+        self._blocked.update(self._pressed)
+        self._pressed.clear()
+        self.on_changed(frozenset(changed))
+
+    def _event(self, signal, values, generation):
+        if generation != self._generation or not self._ready:
+            return
+        if not isinstance(values, (list, tuple)) or len(values) < 2:
+            return
         session, key = values[:2]
-        if session != self._session or key not in self.bindings:
+        if (
+            session != self._session
+            or not isinstance(key, str)
+            or key not in self.bindings
+        ):
+            return
+        if key in self._blocked:
+            if signal == "Deactivated":
+                self._blocked.remove(key)
             return
         if signal == "Activated" and key not in self._pressed:
             self._pressed.add(key)
@@ -330,3 +390,5 @@ class GlobalShortcuts:
         self._session = None
         self.bindings = {}
         self._pressed.clear()
+        self._blocked.clear()
+        self._ready = False

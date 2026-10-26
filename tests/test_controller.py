@@ -545,6 +545,83 @@ class ControllerPortalLifecycleTests(unittest.TestCase):
                 self.assertFalse(self.wire.keys)
                 self.assertFalse(self.wire.signals)
 
+    def bind_shortcuts(self):
+        self.controller.connect_shortcuts()
+        self.wire.reply({"session_handle": "/shortcuts"})
+        self.wire.reply(
+            {
+                "shortcuts": [
+                    ("hold_to_talk", {"trigger_description": "Talk"}),
+                    ("confirm", {"trigger_description": "Confirm"}),
+                ]
+            }
+        )
+
+    def shortcut_signal(self, name, *values):
+        callbacks = [
+            entry[3] for entry in self.wire.signals.values() if entry[1] == name
+        ]
+        self.assertEqual(len(callbacks), 1, f"Missing {name} subscription")
+        callbacks[0](values)
+
+    def change_shortcut(self):
+        self.shortcut_signal(
+            "ShortcutsChanged",
+            "/shortcuts",
+            [("confirm", {"trigger_description": "Updated"})],
+        )
+
+    def test_shortcut_rebind_updates_snapshot_and_cancels_global_capture(self):
+        self.make_controller()
+        self.grant_keyboard()
+        self.bind_shortcuts()
+        snapshots = []
+        self.controller.subscribe(snapshots.append)
+        self.shortcut_signal("Activated", "/shortcuts", "hold_to_talk", 0, {})
+        self.assertEqual(self.controller.snapshot.state, State.RECORDING)
+        self.change_shortcut()
+        self.assertEqual(self.controller.snapshot.state, State.IDLE)
+        self.assertEqual(snapshots[-1].shortcut_bindings["confirm"], "Updated")
+        self.assertTrue(self.remote.granted)
+        self.shortcut_signal("Deactivated", "/shortcuts", "hold_to_talk", 0, {})
+        self.assertEqual(self.controller.snapshot.state, State.IDLE)
+
+    def test_shortcut_rebind_preserves_unrelated_recording_ownership(self):
+        self.make_controller()
+        self.grant_keyboard()
+        self.bind_shortcuts()
+        self.controller.start_recording()  # Native or widget capture.
+        self.shortcut_signal("Activated", "/shortcuts", "hold_to_talk", 0, {})
+        self.change_shortcut()
+        self.shortcut_signal("Deactivated", "/shortcuts", "hold_to_talk", 0, {})
+        self.assertEqual(self.controller.snapshot.state, State.RECORDING)
+        self.assertEqual(
+            self.controller.snapshot.shortcut_bindings["confirm"], "Updated"
+        )
+
+    def test_shortcut_rebind_discards_processing_review_edit_and_armed_action(self):
+        for activity in ("processing", "review", "edit", "armed"):
+            with self.subTest(activity=activity):
+                self.make_controller()
+                self.grant_keyboard()
+                self.bind_shortcuts()
+                self.controller.start_recording()
+                self.controller.finish_recording()
+                if activity != "processing":
+                    self.audio.callbacks["on_result"]("hello")
+                    identity = self.controller.snapshot.pending.id
+                if activity == "edit":
+                    self.controller.begin_edit(identity)
+                if activity == "armed":
+                    self.controller.confirm(identity)
+                self.change_shortcut()
+                self.assertEqual(self.controller.snapshot.state, State.IDLE)
+                self.assertIsNone(self.controller.snapshot.pending)
+                self.scheduler.advance(10)
+                self.audio.callbacks["on_result"]("late result")
+                self.assertFalse(self.wire.keys)
+                self.assertIsNone(self.controller.snapshot.pending)
+
     def test_cancel_or_mode_change_closes_inflight_keyboard_session_at_each_stage(self):
         for stage in ("create", "select", "start"):
             for operation in ("cancel", "mode"):

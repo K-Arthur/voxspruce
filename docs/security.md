@@ -61,7 +61,11 @@ dumps are outside the app's control. This is not secure-memory erasure. See
   replacement revokes active and pending sessions and discards work, even when
   the service cannot emit Session.Closed. Old callbacks cannot restore grants;
   reconnecting requires an explicit setup action. Cleanup/key delivery cannot
-  auto-start the portal or replay a pending action.
+  auto-start the portal or replay a pending action. Desktop shortcut changes
+  update displayed assignments, discard pending actions and global-owned capture,
+  and require held keys to release/re-press without generating confirmations.
+  Partial updates preserve omitted bindings. Native/widget recording ownership
+  is preserved; changes never finish another source's recording.
 - The optional `espeak-ng` process receives only the reviewed action through
   stdin. Capture and speech subprocesses use fixed argument arrays, no shell,
   bounded lifetimes and sanitized app-authored errors. Python documents that

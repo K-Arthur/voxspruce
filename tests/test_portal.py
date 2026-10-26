@@ -365,6 +365,111 @@ class ShortcutTests(unittest.TestCase):
         self.assertFalse(wire.signals)
         self.assertIn("/shortcuts", wire.closed)
 
+    def ready_shortcuts(self):
+        wire, events, changed = FakeTransport(), [], []
+        shortcuts = GlobalShortcuts(wire, lambda *args: events.append(args))
+        shortcuts.on_changed = changed.append
+        shortcuts.connect(lambda *_: None)
+        wire.reply({"session_handle": "/s"})
+        wire.reply(
+            {
+                "shortcuts": [
+                    ("hold_to_talk", {"trigger_description": "Old talk"}),
+                    ("confirm", {"trigger_description": "Old confirm"}),
+                ]
+            }
+        )
+        return wire, shortcuts, events, changed
+
+    def emit(self, wire, signal, values):
+        callbacks = [entry[3] for entry in wire.signals.values() if entry[1] == signal]
+        self.assertEqual(len(callbacks), 1, f"Missing {signal} subscription")
+        callbacks[0](values)
+        return callbacks[0]
+
+    def test_shortcuts_changed_merges_partial_bindings_and_notifies(self):
+        wire, shortcuts, events, changed = self.ready_shortcuts()
+        self.emit(
+            wire,
+            "ShortcutsChanged",
+            ("/s", [("confirm", {"trigger_description": "New confirm"})]),
+        )
+        self.assertEqual(
+            shortcuts.bindings, {"hold_to_talk": "Old talk", "confirm": "New confirm"}
+        )
+        self.assertEqual(changed, [frozenset({"confirm"})])
+        self.assertEqual(events, [])
+
+    def test_changed_held_keys_require_release_and_repress_without_synthetic_confirm(
+        self,
+    ):
+        wire, shortcuts, events, changed = self.ready_shortcuts()
+        for key in ("hold_to_talk", "confirm"):
+            self.emit(wire, "Activated", ("/s", key, 0, {}))
+        self.emit(
+            wire,
+            "ShortcutsChanged",
+            ("/s", [("confirm", {"trigger_description": "New confirm"})]),
+        )
+        for key in ("hold_to_talk", "confirm"):
+            self.emit(wire, "Activated", ("/s", key, 0, {}))  # Repeat while still held.
+            self.emit(wire, "Deactivated", ("/s", key, 0, {}))
+        self.assertEqual(events, [("hold_to_talk", True)])
+        self.emit(wire, "Activated", ("/s", "confirm", 0, {}))
+        self.emit(wire, "Deactivated", ("/s", "confirm", 0, {}))
+        self.assertEqual(events[-1], ("confirm", False))
+        self.assertEqual(len(changed), 1)
+        shortcuts.close()
+        self.assertFalse(wire.signals)
+
+    def test_changed_ignores_malformed_unknown_stale_and_pregrant_events(self):
+        wire, shortcuts, events, changed = self.ready_shortcuts()
+        before = dict(shortcuts.bindings)
+        for values in (
+            (),
+            None,
+            ("/s",),
+            ("/other", [("confirm", {})]),
+            ("/s", None),
+            (
+                "/s",
+                [
+                    None,
+                    (),
+                    ([], {}),
+                    ("unknown", {}),
+                    ("confirm", None),
+                    ("confirm", {"trigger_description": 2}),
+                ],
+            ),
+        ):
+            self.emit(wire, "ShortcutsChanged", values)
+        self.assertEqual(shortcuts.bindings, before)
+        self.assertEqual(changed, [])
+        stale = self.emit(wire, "ShortcutsChanged", ("/other", []))
+        old_press = next(
+            entry[3] for entry in wire.signals.values() if entry[1] == "Activated"
+        )
+        shortcuts.connect(lambda *_: None)
+        wire.reply({"session_handle": "/s"})
+        self.emit(wire, "ShortcutsChanged", ("/s", [("confirm", {})]))
+        self.assertEqual(shortcuts.bindings, {})
+        wire.reply(
+            {"shortcuts": [("confirm", {"trigger_description": "Explicit new grant"})]}
+        )
+        stale(("/s", [("confirm", {"trigger_description": "Stale"})]))
+        old_press(("/s", "confirm", 0, {}))
+        self.emit(wire, "Deactivated", ("/s", "confirm", 0, {}))
+        self.assertEqual(shortcuts.bindings, {"confirm": "Explicit new grant"})
+        self.assertEqual(events, [])
+        self.assertEqual(changed, [])
+
+    def test_shortcut_input_ignores_malformed_payload(self):
+        wire, _shortcuts, events, _changed = self.ready_shortcuts()
+        for values in ((), None, ("/s",), ("/s", []), ("/s", {})):
+            self.emit(wire, "Activated", values)
+        self.assertEqual(events, [])
+
     def test_ptt_press_release_only_for_bound_shortcuts(self):
         wire = FakeTransport()
         events = []

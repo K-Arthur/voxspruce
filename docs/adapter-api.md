@@ -62,6 +62,15 @@ may round it upward for display. Do not infer microphone activity from workflow
   Initial lazy activation (no owner to first owner) is allowed only as part of
   the explicit connection flow. Session close removes all subscriptions. Cleanup
   and key delivery disable D-Bus auto-start; there is no reconnect or input replay.
+- `GlobalShortcuts.ShortcutsChanged` is accepted only for the current, completed
+  session. Its list contains changed entries, so omitted bindings remain granted
+  and retain their descriptions. Unknown/malformed entries and stale-generation
+  callbacks are ignored. `on_changed(frozenset(ids))` refreshes the controller's
+  immutable binding snapshot. All currently held shortcut keys are invalidated
+  until release/re-press, without synthesizing Deactivated or confirmation.
+  Changes cancel global-owned capture and processing/review/edit/countdown/input
+  work; a recording started through native/widget controls retains its ownership.
+  Existing keyboard permission remains; a new action must be reviewed afterward.
 
 For a separate practice coordinator, supply `remote=PracticeInput()` and
 `practice=True`. Only `review_text(text, mode)` creates examples. Capture is

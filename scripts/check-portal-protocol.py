@@ -65,7 +65,9 @@ events = []
 options_seen = []
 errors = []
 shortcut_events = []
+shortcut_changes = []
 registrations = []
+pending_hook = None
 loop = GLib.MainLoop()
 
 
@@ -75,6 +77,7 @@ def fail(message):
 
 
 def method(connection, sender, path, interface, method, parameters, invocation):
+    global pending_hook
     try:
         args = parameters.unpack()
         if method == "NotifyKeyboardKeysym":
@@ -132,6 +135,15 @@ def method(connection, sender, path, interface, method, parameters, invocation):
                     ],
                 )
             }
+        if (
+            pending_hook is not None
+            and method == "CreateSession"
+            and interface.endswith("RemoteDesktop")
+        ):
+            hook, pending_hook = pending_hook, None
+            invocation.return_value(GLib.Variant("(o)", (handle,)))
+            GLib.idle_add(lambda: (hook(connection, handle, result), False)[1])
+            return
         connection.emit_signal(
             None, handle, REQUEST, "Response", GLib.Variant("(ua{sv})", (0, result))
         )
@@ -156,7 +168,9 @@ for path in [remote_session, shortcut_session]:
 transport = RequestTransport(GioWire(bus), timeout=2)
 remote = RemoteDesktop(transport, dispatch=dispatch, on_closed=lambda: finish())
 shortcuts = GlobalShortcuts(
-    transport, lambda key, active: shortcut_events.append((key, active))
+    transport,
+    lambda key, active: shortcut_events.append((key, active)),
+    on_changed=lambda keys: shortcut_changes.append(keys),
 )
 
 
@@ -179,10 +193,13 @@ def finish():
             ("hold_to_talk", False),
             ("confirm", False),
             ("show_controls", False),
+            ("hold_to_talk", True),
+            ("confirm", False),
         ], (
             f"Unexpected shortcut events (Show controls must fire once on release): {shortcut_events!r}"
         )
-        assert shortcuts.bindings["confirm"] == "Assigned confirm", (
+        assert shortcut_changes == [frozenset({"confirm"})], shortcut_changes
+        assert shortcuts.bindings["confirm"] == "Updated confirm", (
             f"Unexpected confirm binding description: {shortcuts.bindings!r}"
         )
         assert shortcuts.bindings["show_controls"] == "Assigned show_controls", (
@@ -256,12 +273,60 @@ def owner_loss_checks():
                 establish("replacement")
             else:
                 replacement.close_sync(None)
-                print(
-                    "PASS: real Gio async requests, early responses, Unicode keys, shortcuts, session closure and portal owner disappearance/replacement on isolated D-Bus"
-                )
-                loop.quit()
+                GLib.timeout_add(20, pending_connection_loss)
         except (AssertionError, GLib.Error) as exc:
             fail(exc)
+        return False
+
+    def pending_connection_loss():
+        global pending_hook
+        pending_lost, completions = [], []
+        pending_remote = RemoteDesktop(
+            transport, dispatch=dispatch, on_closed=lambda: pending_lost.append(True)
+        )
+
+        def verify_late():
+            try:
+                assert not pending_remote.granted, (
+                    "Late Response restored a lost pending grant"
+                )
+                assert pending_lost == [True], pending_lost
+                assert not any(ok for ok, _error in completions), completions
+                print(
+                    "PASS: real Gio requests, early responses, Unicode keys, shortcut changes, session closure, portal disappearance/replacement and pending-connection loss on isolated D-Bus"
+                )
+                loop.quit()
+            except AssertionError as exc:
+                fail(exc)
+            return False
+
+        def owner_gone(connection, handle, result):
+            try:
+                assert not pending_remote.granted, (
+                    "Pending grant survived portal owner loss"
+                )
+                assert pending_lost == [True], pending_lost
+                connection.emit_signal(
+                    None,
+                    handle,
+                    REQUEST,
+                    "Response",
+                    GLib.Variant("(ua{sv})", (0, result)),
+                )
+                GLib.timeout_add(20, verify_late)
+            except (AssertionError, GLib.Error) as exc:
+                fail(exc)
+            return False
+
+        def created(connection, handle, result):
+            try:
+                assert name_call(bus, "ReleaseName") == 1
+                GLib.timeout_add(20, lambda: owner_gone(connection, handle, result))
+            except (AssertionError, GLib.Error) as exc:
+                fail(exc)
+
+        pending_hook = created
+        pending_remote.connect(lambda *args: completions.append(args))
         return False
 
     def establish(mode):
@@ -309,6 +374,49 @@ def shortcuts_bound(ok, error):
             "org.freedesktop.portal.GlobalShortcuts",
             signal,
             GLib.Variant("(osta{sv})", (shortcut_session, key, 0, {})),
+        )
+    for key in ("confirm", "hold_to_talk"):
+        bus.emit_signal(
+            None,
+            DESKTOP,
+            "org.freedesktop.portal.GlobalShortcuts",
+            "Activated",
+            GLib.Variant("(osta{sv})", (shortcut_session, key, 0, {})),
+        )
+    bus.emit_signal(
+        None,
+        DESKTOP,
+        "org.freedesktop.portal.GlobalShortcuts",
+        "ShortcutsChanged",
+        GLib.Variant(
+            "(oa(sa{sv}))",
+            (
+                shortcut_session,
+                [
+                    (
+                        "confirm",
+                        {"trigger_description": GLib.Variant("s", "Updated confirm")},
+                    )
+                ],
+            ),
+        ),
+    )
+    for key in ("confirm", "hold_to_talk"):
+        for signal in ("Activated", "Deactivated"):
+            bus.emit_signal(
+                None,
+                DESKTOP,
+                "org.freedesktop.portal.GlobalShortcuts",
+                signal,
+                GLib.Variant("(osta{sv})", (shortcut_session, key, 0, {})),
+            )
+    for signal in ("Activated", "Deactivated"):
+        bus.emit_signal(
+            None,
+            DESKTOP,
+            "org.freedesktop.portal.GlobalShortcuts",
+            signal,
+            GLib.Variant("(osta{sv})", (shortcut_session, "confirm", 0, {})),
         )
     GLib.timeout_add(
         30,

@@ -113,6 +113,7 @@ class Controller:
         if self.shortcuts:
             self.shortcuts.on_event = self.shortcut_event
             self.shortcuts.on_closed = self.cancel
+            self.shortcuts.on_changed = self.shortcut_bindings_changed
 
     def _new_workflow(self):
         workflow = Workflow(
@@ -257,6 +258,23 @@ class Controller:
             self.cancel()
         elif not active and name == "confirm" and self._workflow.pending:
             self.confirm(self._workflow.pending.id, source="global")
+
+    def shortcut_bindings_changed(self, _keys):
+        """Refresh assignments, invalidating held global and pending action work."""
+        self._assert_thread()
+        if self._global_capture_started or self._workflow.state in (
+            State.PROCESSING,
+            State.REVIEWING,
+            State.EDITING,
+            State.AWAITING_SECOND_CONFIRMATION,
+            State.ARMED,
+            State.EXECUTING,
+        ):
+            self.cancel()
+        self._publish(
+            "Global shortcuts changed. Release held shortcuts and press again; "
+            "review a new action before confirming."
+        )
 
     def prepare_model(self):
         """Explicit setup action: local model work only, no OS permissions."""
