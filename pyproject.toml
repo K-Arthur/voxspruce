@@ -29,3 +29,6 @@ wayland_voice_control = ["schema.sql", "custom-shortcuts.sql", "resources/icons/
 "share/applications" = ["data/io.github.wayland_voice_control.desktop"]
 "share/icons/hicolor/scalable/apps" = ["data/io.github.wayland_voice_control.svg"]
 "share/wayland-voice-control/schemas" = ["schemas/settings.schema.json", "schemas/custom-voice-shortcuts.schema.json"]
+"share/dbus-1/services" = ["data/io.github.wayland_voice_control.service"]
+"share/wayland-voice-control/plasma/io.github.wayland_voice_control" = ["integrations/plasma/io.github.wayland_voice_control/metadata.json"]
+"share/wayland-voice-control/plasma/io.github.wayland_voice_control/contents/ui" = ["integrations/plasma/io.github.wayland_voice_control/contents/ui/*.qml"]
