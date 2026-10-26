@@ -8,7 +8,11 @@ Accessibility is a goal, not a certification or a claim of suitability for every
 
 **Help test:** Try Practice, read the [testing guide](CONTRIBUTING.md#help-test), and share a privacy-conscious [test report](https://github.com/K-Arthur/voxspruce/issues/new?template=test-report.yml). Developers can start with [contributing](CONTRIBUTING.md). Report vulnerabilities [privately](SECURITY.md).
 
-Previously called Wayland Voice Control, Voxspruce retains the existing package, command, configuration, and application identifiers.
+Previously called Wayland Voice Control, Voxspruce retains the existing package, command, configuration, and application identifiers. Existing clones can update their Git remote:
+
+```sh
+git remote set-url origin https://github.com/K-Arthur/voxspruce.git
+```
 
 ## What can I try now?
 
