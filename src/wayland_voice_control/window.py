@@ -40,13 +40,12 @@ class AccessibleHeading(Gtk.Label):
 
     def __init__(self, text, *, level=2):
         super().__init__(
+            accessible_role=Gtk.AccessibleRole.HEADING,
             label=text,
             xalign=0,
             wrap=level >= 2,
             wrap_mode=Pango.WrapMode.WORD_CHAR,
         )
-        if hasattr(Gtk.AccessibleRole, "HEADING"):
-            self.set_accessible_role(Gtk.AccessibleRole.HEADING)
         if hasattr(Gtk.AccessibleProperty, "LEVEL"):
             self.update_property([Gtk.AccessibleProperty.LEVEL], [level])
         if level >= 2:
@@ -59,9 +58,12 @@ class AccessibleStatus(Gtk.Label):
     __gtype_name__ = "WvcAccessibleStatus"
 
     def __init__(self):
-        super().__init__(xalign=0, wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR)
-        if hasattr(Gtk.AccessibleRole, "STATUS"):
-            self.set_accessible_role(Gtk.AccessibleRole.STATUS)
+        super().__init__(
+            accessible_role=Gtk.AccessibleRole.STATUS,
+            xalign=0,
+            wrap=True,
+            wrap_mode=Pango.WrapMode.WORD_CHAR,
+        )
 
 
 class AccessibleGroup(Gtk.Box):
@@ -70,9 +72,13 @@ class AccessibleGroup(Gtk.Box):
     __gtype_name__ = "WvcAccessibleGroup"
 
     def __init__(self, title):
-        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        if hasattr(Gtk.AccessibleRole, "GROUP"):
-            self.set_accessible_role(Gtk.AccessibleRole.GROUP)
+        # The class setter cannot update an AT context already created by
+        # orientation initialization. Set the instance property first instead.
+        super().__init__(
+            accessible_role=Gtk.AccessibleRole.GROUP,
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=12,
+        )
         self.update_property([Gtk.AccessibleProperty.LABEL], [title])
 
 

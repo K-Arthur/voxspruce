@@ -1,6 +1,8 @@
 """Run explicitly under dbus-run-session / Xvfb; pure CI need not have GTK."""
 
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -307,6 +309,38 @@ class NativeWindowTests(unittest.TestCase):
                         widget, Gtk.AccessibleProperty.LABEL
                     )
                 )
+
+    def test_semantic_roles_do_not_depend_on_legacy_class_setter(self):
+        # A fresh process matters: constructing VoiceWindow once already changes
+        # semantic class defaults and can hide the first-instance AT-context bug.
+        # Emulate the legacy class setter being unable to update an existing
+        # instance context. The accessible-role instance property works in GTK4.
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                """
+from unittest.mock import patch
+from wayland_voice_control.window import (
+    Gtk, AccessibleGroup, AccessibleHeading, AccessibleStatus,
+)
+Gtk.init()
+with patch.object(Gtk.Widget, "set_accessible_role", return_value=None):
+    widgets = (AccessibleGroup("Section"), AccessibleHeading("Heading"), AccessibleStatus())
+roles = tuple(Gtk.Accessible.get_accessible_role(widget) for widget in widgets)
+expected = (Gtk.AccessibleRole.GROUP, Gtk.AccessibleRole.HEADING, Gtk.AccessibleRole.STATUS)
+assert roles == expected, f"Semantic instance roles {roles!r}, expected {expected!r}"
+assert Gtk.Accessible.get_accessible_role(Gtk.Label()) == Gtk.AccessibleRole.LABEL
+assert Gtk.Accessible.get_accessible_role(Gtk.Box()) == Gtk.AccessibleRole.GENERIC
+""",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout)
 
     def test_screen_reader_can_navigate_named_sections_and_headings(self):
         from gi.repository import Gtk
