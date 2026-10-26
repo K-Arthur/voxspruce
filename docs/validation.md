@@ -383,3 +383,15 @@ listed environments. They do not establish GNOME panel integration, real portal
 keyboard insertion, physical microphone latency/accuracy, Orca/braille output,
 or usability with disabled participants. The existing manual matrix remains
 required; no TalkBack parity or broad disability-optimization claim is made.
+
+## Main integration
+
+The completed desktop-controls feature was fast-forward merged and pushed to
+`main` at `25ba3be`. The merged checkout passed the full GTK-enabled 235-test run
+(three optional Vosk cases skipped), 21 native KDE tests, the three-case actual
+GTK–QML scenario, the real Gio portal check, static checks and all three build
+artifacts. [Public main-branch CI passed](https://github.com/K-Arthur/wayland-voice-control/actions/runs/40272285201),
+including installed entry-point checks and distribution upload. The source
+worktree was removed after copying local visual evidence to the main checkout's
+ignored `artifacts/` directory. The main checkout retains the built `.plasmoid`,
+wheel and sdist in ignored `dist/`.

@@ -37,4 +37,4 @@ Files: README; architecture, adapter-api, privacy, security, accessibility, comp
 - [x] Add the private native IPC tests to CI; document local Qt/Plasma tests separately where Ubuntu lacks the required Plasma module. Build wheel/sdist and widget artifact; inspect installed resource paths and entry points from a clean temporary environment.
 - [x] Run full pure and GTK suites, private portal and widget protocol checks, Qt tests, Ruff, compileall, package build/installed checks. Record counts, platform/tool versions and actual visual evidence; mark any real-session manual gaps honestly.
 - [x] Obtain final spec then quality review; resolve findings with regressions and rerun affected checks.
-- [ ] Commit docs/integration, merge the completed feature into `main` as explicitly requested, push all progressive commits and check GitHub Actions on the resulting `main` commit. Confirm clean workspace and remote commit.
+- [x] Commit docs/integration, merge the completed feature into `main` as explicitly requested, push all progressive commits and check GitHub Actions on the resulting `main` commit. Confirm clean workspace and remote commit.
